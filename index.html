@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Mobility &amp; Rehab Tracker</title>
+    <meta name="description" content="A daily mobility and rehab routine tracker. Everything stays on this device." />
+    <meta name="theme-color" content="#111417" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#129485;</text></svg>" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="head">
+        <h1>Mobility &amp; Rehab</h1>
+        <p class="today" id="today-label"></p>
+      </header>
+
+      <section class="card checkpoint" id="checkpoint" aria-labelledby="checkpoint-title">
+        <h2 id="checkpoint-title">Ankle checkpoint — 12 weeks</h2>
+        <div id="checkpoint-body"></div>
+      </section>
+
+      <section aria-labelledby="daily-title">
+        <div class="section-head">
+          <h2 id="daily-title">Every day</h2>
+          <p class="progress" id="daily-progress"></p>
+        </div>
+        <ul class="list" id="daily-list"></ul>
+      </section>
+
+      <section aria-labelledby="daytype-title">
+        <div class="section-head">
+          <h2 id="daytype-title">Today is a…</h2>
+          <p class="progress" id="daytype-progress"></p>
+        </div>
+        <div class="segmented" role="radiogroup" aria-label="Day type">
+          <button type="button" role="radio" id="btn-training" data-daytype="training">Training day</button>
+          <button type="button" role="radio" id="btn-off" data-daytype="off">Off day</button>
+        </div>
+        <ul class="list" id="daytype-list"></ul>
+      </section>
+
+      <section aria-labelledby="weekly-title">
+        <div class="section-head">
+          <h2 id="weekly-title">Spread across the week</h2>
+          <p class="progress" id="weekly-progress"></p>
+        </div>
+        <p class="hint">Tap a count to add one. The counts go back to zero every Monday.</p>
+        <ul class="list" id="weekly-list"></ul>
+      </section>
+
+      <footer class="foot">
+        <p>No account, no server. All data stays in this browser.</p>
+        <p><button type="button" class="link" id="reset-all">Erase all data</button></p>
+      </footer>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
