@@ -226,6 +226,35 @@ li.row > div.check { cursor: default; }
 .counter b { font-size: 0.8125rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink-2); }
 .counter.full b { color: var(--accent); }
 
+
+/* Row that adds one dose on each tap. */
+.rowbtn {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8125rem;
+  width: 100%;
+  padding: 0.9375rem;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rowbtn .text { flex: 1 1 auto; min-width: 0; }
+.rowbtn .counter { flex: none; margin-right: 0; align-self: center; }
+.rowbtn:active .dot { transform: scale(0.9); }
+.dot.on { background: var(--accent); border-color: var(--accent); }
+.dot.on svg { opacity: 1; transform: scale(1); }
+
+.hero-doses {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ------------------------------------------------------------- segmented */
 
 .segmented {

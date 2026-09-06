@@ -3,7 +3,10 @@
 var STORAGE_KEY = "mobility-tracker-v1";
 var PROGRAM_DAYS = 84; /* 12 weeks */
 
-/* ---------------------------------------------------------------- content */
+/* ---------------------------------------------------------------- content
+   dose = how many times you do it in one day. Leave it out for once a day.
+   Change a number here and the whole app follows: the pips, the ring,
+   the grid, and the streak. Do not change an id after you use the app. */
 
 var DAILY = [
   { id: "ankle-dorsiflexion", name: "Banded ankle dorsiflexion mobilization", detail: "5–10 reps × 30s hold — left ankle priority" },
@@ -11,12 +14,10 @@ var DAILY = [
   { id: "hamstring", name: "Hamstring static stretch", detail: "~90s total per leg" },
   { id: "thoracic-extension", name: "Foam roller thoracic extension", detail: "T7 / T9 / T11 — 30–90s each" },
   { id: "wall-slides", name: "Wall slides", detail: "2–3 × 10–15" },
-  { id: "chin-tucks-1", name: "Chin tucks — set 1", detail: "10 × 5–10s hold" },
-  { id: "chin-tucks-2", name: "Chin tucks — set 2", detail: "10 × 5–10s hold" },
+  { id: "chin-tucks", name: "Chin tucks", detail: "10 × 5–10s hold", dose: 2 },
   { id: "pec-trap-levator", name: "Doorway pec stretch + upper trap + levator stretch", detail: "20–30s each side" },
   { id: "stability-set", name: "Stability set", detail: "McGill Big 3, hip airplane, QL plank, clamshell, lateral walk, dead bug, band chop, back extension, QL extension" },
-  { id: "decompression-am", name: "Passive decompression — AM", detail: "" },
-  { id: "decompression-pm", name: "Passive decompression — PM", detail: "" }
+  { id: "decompression", name: "Passive decompression", detail: "AM and PM", dose: 2 }
 ];
 
 var TRAINING = [
@@ -44,6 +45,14 @@ var WEEKLY = [
   { id: "w-knee-to-wall", name: "Knee-to-wall dorsiflexion measure", detail: "Record the distance in centimetres on the Progress tab", target: 1 }
 ];
 
+/* Old ids, kept so that stored data still counts after a rename. */
+var MERGED = {
+  "chin-tucks-1": "chin-tucks",
+  "chin-tucks-2": "chin-tucks",
+  "decompression-am": "decompression",
+  "decompression-pm": "decompression"
+};
+
 var CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7"/></svg>';
 
 /* ------------------------------------------------------------ date helpers */
@@ -58,7 +67,6 @@ function iso(date) {
 
 function todayISO() { return iso(new Date()); }
 
-/* The Monday of the week that holds the given date. */
 function mondayISO(date) {
   var d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
@@ -97,7 +105,7 @@ function emptyState() {
     date: todayISO(),
     weekStart: mondayISO(new Date()),
     dayType: "training",
-    checks: {},
+    doses: {},
     counts: {},
     startDate: null,
     measures: [],
@@ -113,11 +121,20 @@ function load() {
   base.date = raw.date || base.date;
   base.weekStart = raw.weekStart || base.weekStart;
   base.dayType = raw.dayType === "off" ? "off" : "training";
-  base.checks = raw.checks || {};
+  base.doses = raw.doses || {};
   base.counts = raw.counts || {};
   base.startDate = raw.startDate || null;
   base.measures = Array.isArray(raw.measures) ? raw.measures : [];
   base.history = raw.history || {};
+
+  /* Move data from the old one-checkbox-per-row format. */
+  if (raw.checks && !raw.doses) {
+    for (var id in raw.checks) {
+      if (!Object.prototype.hasOwnProperty.call(raw.checks, id) || !raw.checks[id]) { continue; }
+      var key = MERGED[id] || id;
+      base.doses[key] = (base.doses[key] || 0) + 1;
+    }
+  }
   return base;
 }
 
@@ -125,14 +142,13 @@ function save() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (err) { /* full or private */ }
 }
 
-/* Clear the daily checks at midnight, and the weekly counts each Monday. */
 function rollover() {
   var changed = false;
   var day = todayISO();
   var week = mondayISO(new Date());
   if (state.date !== day) {
     state.date = day;
-    state.checks = {};
+    state.doses = {};
     changed = true;
   }
   if (state.weekStart !== week) {
@@ -150,20 +166,35 @@ var state = load();
 
 function dayTypeItems() { return state.dayType === "off" ? OFF : TRAINING; }
 
-function doneCount(items) {
+function doseOf(item) { return item.dose || 1; }
+function countOf(item) { return state.doses[item.id] || 0; }
+function itemDone(item) { return countOf(item) >= doseOf(item); }
+
+function dosesDone(items) {
   var n = 0;
-  for (var i = 0; i < items.length; i++) { if (state.checks[items[i].id]) { n += 1; } }
+  for (var i = 0; i < items.length; i++) { n += Math.min(countOf(items[i]), doseOf(items[i])); }
   return n;
 }
 
-/* One record per day: d = items done, t = items in play, e = every-day items done. */
+function dosesTotal(items) {
+  var n = 0;
+  for (var i = 0; i < items.length; i++) { n += doseOf(items[i]); }
+  return n;
+}
+
+/* One record per day. d/t = doses done and planned. e/et = the every-day list. */
 function recordToday() {
-  var e = doneCount(DAILY);
-  var d = e + doneCount(dayTypeItems());
+  var e = dosesDone(DAILY);
+  var d = e + dosesDone(dayTypeItems());
   if (d === 0) {
     delete state.history[state.date];
   } else {
-    state.history[state.date] = { d: d, t: DAILY.length + dayTypeItems().length, e: e };
+    state.history[state.date] = {
+      d: d,
+      t: dosesTotal(DAILY) + dosesTotal(dayTypeItems()),
+      e: e,
+      et: dosesTotal(DAILY)
+    };
   }
 }
 
@@ -179,10 +210,11 @@ function levelOf(day) {
   return Math.min(4, Math.ceil(r * 4));
 }
 
-/* A day counts for the streak when the whole every-day list is done. */
+/* A day counts for the streak when every dose of the every-day list is done. */
 function isStreakDay(day) {
   var rec = state.history[day];
-  return !!rec && rec.e >= DAILY.length;
+  if (!rec) { return false; }
+  return rec.e >= (rec.et || DAILY.length);
 }
 
 function currentStreak() {
@@ -223,21 +255,34 @@ function itemText(parent, item) {
   parent.appendChild(text);
 }
 
+function dotNode() {
+  var dot = el("span", "dot");
+  dot.innerHTML = CHECK_SVG;
+  return dot;
+}
+
+function pipCounter(count, target) {
+  var box = el("span", "counter");
+  var pips = el("span", "pips");
+  for (var i = 0; i < target; i++) { pips.appendChild(el("i", i < count ? "pip on" : "pip")); }
+  box.appendChild(pips);
+  box.appendChild(el("b", null, count + "/" + target));
+  if (count >= target) { box.classList.add("full"); }
+  return box;
+}
+
+/* Once a day: a checkbox. */
 function checkRow(item) {
   var li = el("li", "row");
   var label = el("label", "check");
   var box = document.createElement("input");
   box.type = "checkbox";
-  box.checked = !!state.checks[item.id];
-  var dot = el("span", "dot");
-  dot.innerHTML = CHECK_SVG;
+  box.checked = itemDone(item);
+  var dot = dotNode();
   box.addEventListener("change", function () {
-    if (box.checked) { state.checks[item.id] = true; } else { delete state.checks[item.id]; }
+    if (box.checked) { state.doses[item.id] = 1; } else { delete state.doses[item.id]; }
     li.classList.toggle("done", box.checked);
-    recordToday();
-    save();
-    renderProgressLabels();
-    renderHero();
+    afterChange();
   });
   label.appendChild(box);
   label.appendChild(dot);
@@ -247,7 +292,34 @@ function checkRow(item) {
   return li;
 }
 
-function countRow(item) {
+/* More than once a day: the whole row adds one dose. It wraps to 0 at the end. */
+function doseRow(item) {
+  var li = el("li", "row");
+  var button = el("button", "rowbtn");
+  button.type = "button";
+  var count = Math.min(countOf(item), doseOf(item));
+  var done = itemDone(item);
+
+  var dot = dotNode();
+  if (done) { dot.classList.add("on"); }
+  button.appendChild(dot);
+  itemText(button, item);
+  button.appendChild(pipCounter(count, doseOf(item)));
+  button.setAttribute("aria-label", item.name + ": " + count + " of " + doseOf(item) + " today. Tap to add one.");
+  button.addEventListener("click", function () {
+    var next = countOf(item) + 1;
+    state.doses[item.id] = next > doseOf(item) ? 0 : next;
+    afterChange();
+    renderToday();
+  });
+  li.appendChild(button);
+  if (done) { li.classList.add("done"); }
+  return li;
+}
+
+function taskRow(item) { return doseOf(item) > 1 ? doseRow(item) : checkRow(item); }
+
+function weekRow(item) {
   var li = el("li", "row");
   var body = el("div", "check");
   itemText(body, item);
@@ -257,9 +329,7 @@ function countRow(item) {
   var button = el("button", "counter");
   button.type = "button";
   var pips = el("span", "pips");
-  for (var i = 0; i < item.target; i++) {
-    pips.appendChild(el("i", i < count ? "pip on" : "pip"));
-  }
+  for (var i = 0; i < item.target; i++) { pips.appendChild(el("i", i < count ? "pip on" : "pip")); }
   button.appendChild(pips);
   button.appendChild(el("b", null, count + "/" + item.target));
   button.setAttribute("aria-label", item.name + ": " + count + " of " + item.target + " this week. Tap to add one.");
@@ -272,6 +342,13 @@ function countRow(item) {
   });
   li.appendChild(button);
   return li;
+}
+
+function afterChange() {
+  recordToday();
+  save();
+  renderLabels();
+  renderHero();
 }
 
 function fill(id, items, makeRow) {
@@ -290,18 +367,19 @@ function programDay() {
 function ringSVG(percent) {
   var r = 30;
   var c = 2 * Math.PI * r;
-  var offset = c * (1 - percent / 100);
   return '<svg class="ring" width="76" height="76" viewBox="0 0 76 76" aria-hidden="true">' +
     '<circle class="bg" cx="38" cy="38" r="' + r + '"></circle>' +
     '<circle class="fg" cx="38" cy="38" r="' + r + '" stroke-dasharray="' + c.toFixed(1) + '" ' +
-    'stroke-dashoffset="' + offset.toFixed(1) + '" transform="rotate(-90 38 38)"></circle>' +
-    '<text x="38" y="45" text-anchor="middle">' + percent + '</text></svg>';
+    'stroke-dashoffset="' + (c * (1 - percent / 100)).toFixed(1) + '" transform="rotate(-90 38 38)"></circle>' +
+    '<text x="38" y="45" text-anchor="middle">' + percent + "</text></svg>";
 }
 
 function renderHero() {
   var hero = document.getElementById("hero");
   var items = DAILY.concat(dayTypeItems());
-  var percent = Math.round((doneCount(items) / items.length) * 100);
+  var done = dosesDone(items);
+  var total = dosesTotal(items);
+  var percent = Math.round((done / total) * 100);
   var day = programDay();
 
   var headline;
@@ -313,7 +391,7 @@ function renderHero() {
     headline = "Day 0";
     note = "The program starts in " + plural(1 - day, "day") + ".";
   } else if (day <= PROGRAM_DAYS) {
-    headline = 'Day ' + day + ' <small>/ ' + PROGRAM_DAYS + "</small>";
+    headline = "Day " + day + " <small>/ " + PROGRAM_DAYS + "</small>";
     note = "Week " + Math.ceil(day / 7) + " of 12 — " + plural(PROGRAM_DAYS - day, "day") + " to the checkpoint";
   } else {
     headline = "Day " + day;
@@ -327,30 +405,28 @@ function renderHero() {
       '<p class="hero-note">' + note + "</p>" +
     "</div>" + ringSVG(percent) + "</div>" +
     '<div class="track"><i style="width:' + percent + '%"></i></div>' +
+    '<p class="hero-doses">' + done + " of " + total + " doses today</p>" +
     (day !== null && day > PROGRAM_DAYS
       ? '<p class="alert">Day 84 has passed. If the ankle still pops on every step, book a surgical consult.</p>'
       : "");
 }
 
-function renderProgressLabels() {
-  var day = dayTypeItems();
-  var d1 = document.getElementById("daily-progress");
-  d1.textContent = doneCount(DAILY) + "/" + DAILY.length;
-  d1.classList.toggle("full", doneCount(DAILY) === DAILY.length);
+function setLabel(id, done, total) {
+  var node = document.getElementById(id);
+  node.textContent = done + "/" + total;
+  node.classList.toggle("full", done >= total);
+}
 
-  var d2 = document.getElementById("daytype-progress");
-  d2.textContent = doneCount(day) + "/" + day.length;
-  d2.classList.toggle("full", doneCount(day) === day.length);
-
+function renderLabels() {
+  setLabel("daily-progress", dosesDone(DAILY), dosesTotal(DAILY));
+  setLabel("daytype-progress", dosesDone(dayTypeItems()), dosesTotal(dayTypeItems()));
   var done = 0;
   var total = 0;
   for (var i = 0; i < WEEKLY.length; i++) {
     total += WEEKLY[i].target;
     done += Math.min(state.counts[WEEKLY[i].id] || 0, WEEKLY[i].target);
   }
-  var d3 = document.getElementById("weekly-progress");
-  d3.textContent = done + "/" + total;
-  d3.classList.toggle("full", done === total);
+  setLabel("weekly-progress", done, total);
 }
 
 /* --------------------------------------------------------------- progress */
@@ -360,7 +436,6 @@ var picked = null;
 function renderGrid() {
   var grid = document.getElementById("grid");
   grid.innerHTML = "";
-
   var first = state.startDate ? state.startDate : shiftISO(todayISO(), -(PROGRAM_DAYS - 1));
   document.getElementById("grid-title").textContent = state.startDate ? "12 weeks" : "Last 12 weeks";
 
@@ -386,30 +461,24 @@ function renderGrid() {
 
 function showDay(day) {
   var out = document.getElementById("grid-detail");
-  if (!day) {
-    out.textContent = "Tap a square to see that day.";
-    return;
-  }
+  if (!day) { out.textContent = "Tap a square to see that day."; return; }
   var rec = state.history[day];
-  if (!rec) {
-    out.textContent = longDate(day) + " — nothing logged.";
-    return;
-  }
-  out.textContent = longDate(day) + " — " + rec.d + " of " + rec.t + " done (" +
-    Math.round((rec.d / rec.t) * 100) + "%)" + (rec.e >= DAILY.length ? " · every-day list complete" : "");
+  if (!rec) { out.textContent = longDate(day) + " — nothing logged."; return; }
+  out.textContent = longDate(day) + " — " + rec.d + " of " + rec.t + " doses (" +
+    Math.round((rec.d / rec.t) * 100) + "%)" + (isStreakDay(day) ? " · every-day list complete" : "");
 }
 
 function renderStats() {
   var row = document.getElementById("stat-row");
   row.innerHTML = "";
-  var done = 0;
+  var full = 0;
   for (var key in state.history) {
-    if (Object.prototype.hasOwnProperty.call(state.history, key) && isStreakDay(key)) { done += 1; }
+    if (Object.prototype.hasOwnProperty.call(state.history, key) && isStreakDay(key)) { full += 1; }
   }
   var stats = [
     { value: currentStreak(), label: "Streak" },
     { value: bestStreak(), label: "Best" },
-    { value: done, label: "Full days" }
+    { value: full, label: "Full days" }
   ];
   for (var i = 0; i < stats.length; i++) {
     var box = el("div", "stat");
@@ -474,7 +543,7 @@ function renderCheckpoint() {
 function renderMeasures() {
   var body = document.getElementById("measure-body");
   body.innerHTML = "";
-  body.appendChild(el("p", "note", "One measurement per week. Kneel, drive the knee to the wall, and record the distance from the toes."));
+  body.appendChild(el("p", "note", "One measurement each week. Kneel, drive the knee to the wall, and record the distance from the toes."));
 
   var thisWeek = null;
   for (var i = 0; i < state.measures.length; i++) {
@@ -523,16 +592,16 @@ function renderMeasures() {
 
 function renderToday() {
   renderHero();
-  fill("daily-list", DAILY, checkRow);
-  fill("daytype-list", dayTypeItems(), checkRow);
-  fill("weekly-list", WEEKLY, countRow);
+  fill("daily-list", DAILY, taskRow);
+  fill("daytype-list", dayTypeItems(), taskRow);
+  fill("weekly-list", WEEKLY, weekRow);
   var buttons = document.querySelectorAll("[data-daytype]");
   for (var i = 0; i < buttons.length; i++) {
     var on = buttons[i].getAttribute("data-daytype") === state.dayType;
     buttons[i].classList.toggle("active", on);
     buttons[i].setAttribute("aria-checked", on ? "true" : "false");
   }
-  renderProgressLabels();
+  renderLabels();
 }
 
 function render() {
@@ -551,8 +620,11 @@ function showView(name) {
   document.getElementById("view-progress").hidden = name !== "progress";
   var tabs = document.querySelectorAll(".tab");
   for (var i = 0; i < tabs.length; i++) {
-    var on = tabs[i].getAttribute("data-view") === name;
-    if (on) { tabs[i].setAttribute("aria-current", "page"); } else { tabs[i].removeAttribute("aria-current"); }
+    if (tabs[i].getAttribute("data-view") === name) {
+      tabs[i].setAttribute("aria-current", "page");
+    } else {
+      tabs[i].removeAttribute("aria-current");
+    }
   }
   if (name === "progress") { renderStats(); renderGrid(); }
   window.scrollTo(0, 0);

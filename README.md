@@ -13,7 +13,7 @@ The app has two tabs.
 | Part | Behavior |
 | --- | --- |
 | **Hero** | The program day (for example "Day 42 / 84"), the week, the days to the checkpoint, and a ring with today's completion. |
-| **Every day** | A checklist that you complete each day. |
+| **Every day** | The daily list. An exercise you do once shows a checkbox. An exercise you do more than once shows a dose counter — each tap adds one, and it wraps to 0 after the last dose. |
 | **Training day / Off day** | A toggle. It swaps the second checklist. It keeps the last selection. |
 | **This week** | Counters with a weekly target. Each tap adds one. The count goes back to 0 after the target. |
 
@@ -21,8 +21,8 @@ The app has two tabs.
 
 | Part | Behavior |
 | --- | --- |
-| **Streak / Best / Full days** | A day counts when you complete the full every-day list. |
-| **Grid** | 84 squares — 12 columns of 7 days. Each square gets brighter as you complete more of that day. Tap a square to see the numbers. |
+| **Streak / Best / Full days** | A day counts when you complete every dose of the every-day list. |
+| **Grid** | 84 squares — 12 columns of 7 days. Each square gets brighter as you complete more of the day's doses. Tap a square to see the numbers. |
 | **Ankle checkpoint** | The week of 12, the days that remain, and the start date control. |
 | **Knee-to-wall** | One measurement each week, with the history below. |
 
@@ -67,7 +67,11 @@ python3 -m http.server 8000    # then open http://localhost:8000
 
 Open `app.js`. The four lists are at the top of the file: `DAILY`,
 `TRAINING`, `OFF`, and `WEEKLY`. Each item has an `id`, a `name`, and a
-`detail`. Weekly items also have a `target`.
+`detail`.
+
+- Add `dose: 3` to a daily item that you do three times each day. Leave it
+  out for once a day. The ring, the grid, and the streak follow the number.
+- Weekly items use `target` instead — the number of times in a week.
 
 Keep the `id` values unique. Do not change an `id` after you use the app,
 because the stored progress points to it.
