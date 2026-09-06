@@ -3,57 +3,89 @@
 var STORAGE_KEY = "mobility-tracker-v1";
 var PROGRAM_DAYS = 84; /* 12 weeks */
 
-/* ---------------------------------------------------------------- content
-   dose = how many times you do it in one day. Leave it out for once a day.
-   Change a number here and the whole app follows: the pips, the ring,
-   the grid, and the streak. Do not change an id after you use the app. */
+/* ---------------------------------------------------------------- content */
 
+/* Every day, all 7 days. */
 var DAILY = [
-  { id: "ankle-dorsiflexion", name: "Banded ankle dorsiflexion mobilization", detail: "5–10 reps × 30s hold — left ankle priority" },
-  { id: "gastroc-soleus", name: "Gastroc + soleus stretch", detail: "3–4 × 30–60s each head, both legs" },
+  { id: "ankle-dorsiflexion", name: "Banded ankle dorsiflexion mobilization", detail: "5–10 × 30s hold — left ankle priority" },
+  { id: "gastroc", name: "Gastroc stretch", detail: "Calf, knee straight — 3–4 × 30–60s, both legs" },
+  { id: "soleus", name: "Soleus stretch", detail: "Calf, knee bent — 3–4 × 30–60s, both legs" },
   { id: "hamstring", name: "Hamstring static stretch", detail: "~90s total per leg" },
-  { id: "thoracic-extension", name: "Foam roller thoracic extension", detail: "T7 / T9 / T11 — 30–90s each" },
+  { id: "thoracic-extension", name: "Foam roller thoracic extension", detail: "T7 / T9 / T11 — 30–90s each level" },
   { id: "wall-slides", name: "Wall slides", detail: "2–3 × 10–15" },
-  { id: "chin-tucks", name: "Chin tucks", detail: "10 × 5–10s hold", dose: 2 },
-  { id: "pec-trap-levator", name: "Doorway pec stretch + upper trap + levator stretch", detail: "20–30s each side" },
-  { id: "stability-set", name: "Stability set", detail: "McGill Big 3, hip airplane, QL plank, clamshell, lateral walk, dead bug, band chop, back extension, QL extension" },
-  { id: "decompression", name: "Passive decompression", detail: "AM and PM", dose: 2 }
+  { id: "chin-tucks-1", name: "Chin tucks — set 1", detail: "10 × 5–10s hold" },
+  { id: "chin-tucks-2", name: "Chin tucks — set 2", detail: "Later in the day — 10 × 5–10s hold" },
+  { id: "pec", name: "Doorway pec stretch", detail: "20–30s each side" },
+  { id: "upper-trap", name: "Upper trap stretch", detail: "20–30s each side" },
+  { id: "levator", name: "Levator scapulae stretch", detail: "20–30s each side" },
+  { id: "stability-set", name: "Stability set", detail: "McGill Big 3, hip airplane, QL plank, clamshell, banded lateral walk, contralateral dead bug, band chop, back extension, QL extension" },
+  { id: "decompression-am", name: "Passive decompression — AM", detail: "" },
+  { id: "decompression-pm", name: "Passive decompression — PM", detail: "" }
 ];
 
-var TRAINING = [
-  { id: "t-warmup", name: "Loaded mobility warm-up", detail: "ATG split squat + loaded butterfly" },
-  { id: "t-swole", name: "SWOLE session", detail: "Programmed lift for the day" },
-  { id: "t-glute-max", name: "Glute max loading", detail: "Hip thrust or bridge, 3–4 × 8–12 — or RDL / hinge day" },
-  { id: "t-glute-med", name: "Glute med work", detail: "Heavier band clamshell or lateral walk, 3 × 12–20" },
-  { id: "t-neck-shrug", name: "Neck / shrug add-on", detail: "Existing isometric neck + shrug variation" },
-  { id: "t-sweat", name: "Sweat finisher", detail: "Bike or rower intervals, ~10 min" },
-  { id: "t-cooldown", name: "Cooldown", detail: "" }
-];
+/* On top of the daily list. */
+var DAY_TYPES = {
+  lift: {
+    name: "Lift day",
+    short: "Lift",
+    items: [
+      { id: "l-warmup", name: "Loaded mobility warm-up", detail: "ATG split squat + loaded butterfly" },
+      { id: "l-glute-max", name: "Glute max loading", detail: "Hip thrust or bridge, 3–4 × 8–12 — or your RDL / hinge day" },
+      { id: "l-glute-med", name: "Glute med work", detail: "Heavier band clamshell or lateral walk, 3 × 12–20" },
+      { id: "l-neck-shrug", name: "Neck / shrug isometric add-on", detail: "" },
+      { id: "l-cooldown", name: "Cooldown", detail: "" }
+    ]
+  },
+  hybrid: {
+    name: "Hybrid day",
+    short: "Hybrid",
+    items: [
+      { id: "h-warmup", name: "Loaded mobility warm-up", detail: "ATG split squat + loaded butterfly" },
+      { id: "h-glute-med", name: "Glute med work", detail: "3 × 12–20 — on every hybrid day" },
+      { id: "h-glute-max", name: "Glute max loading", detail: "Only if the hybrid session is light on swings, hinges, or single-leg work", optional: true }
+    ]
+  },
+  off: {
+    name: "Off day",
+    short: "Off",
+    items: [
+      { id: "o-couch", name: "Couch stretch", detail: "Hip flexor — 30–120s per side" },
+      { id: "o-back-core", name: "Back / core strength block", detail: "Single-leg reverse hyper, single-leg RDL" },
+      { id: "o-incline-walk", name: "Incline walk or steps", detail: "30–45 min" },
+      { id: "o-extra-volume", name: "Extra hamstring / calf stretch volume", detail: "Beyond the daily minimum" }
+    ]
+  }
+};
 
-var OFF = [
-  { id: "o-back-core", name: "Back / core strength block", detail: "Single-leg reverse hyper, single-leg RDL" },
-  { id: "o-couch", name: "Couch stretch", detail: "30–120s per side — tuck the pelvis before you drive the hip forward" },
-  { id: "o-incline-walk", name: "Incline walk or steps", detail: "30–45 min" },
-  { id: "o-extra-volume", name: "Extra hamstring / calf volume", detail: "Toward the weekly total stretch time" }
-];
+/* Sunday to Saturday, by Date.getDay(). */
+var WEEK_MAP = ["off", "lift", "hybrid", "lift", "hybrid", "lift", "hybrid"];
 
+var DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/* Spread across the week. days = the weekdays they are planned for. */
 var WEEKLY = [
-  { id: "w-peroneal", name: "Peroneal eversion + single-leg balance", detail: "Band eversion 3 × 15 + proprioception drill", target: 3 },
-  { id: "w-ytw", name: "Y-T-W raises", detail: "2–3 × 10–15", target: 3 },
-  { id: "w-face-pulls", name: "Face pulls or band pull-aparts", detail: "", target: 3 },
-  { id: "w-photo", name: "Side profile check-in photo", detail: "", target: 1 },
-  { id: "w-knee-to-wall", name: "Knee-to-wall dorsiflexion measure", detail: "Record the distance in centimetres on the Progress tab", target: 1 }
+  { id: "w-peroneal", name: "Peroneal eversion + single-leg balance", detail: "Band eversion 3 × 15 + balance drill", target: 2, days: [1, 4] },
+  { id: "w-ytw", name: "Y-T-W raises", detail: "2–3 × 10–15", target: 2, days: [2, 5] },
+  { id: "w-face-pulls", name: "Face pulls or band pull-aparts", detail: "", target: 2, days: [3, 6] },
+  { id: "w-photo", name: "Side profile check-in photo", detail: "", target: 1, days: [3] },
+  { id: "w-knee-to-wall", name: "Knee-to-wall dorsiflexion measure", detail: "Record the number on the Progress tab", target: 1, days: [3] }
 ];
 
-/* Old ids, kept so that stored data still counts after a rename. */
+/* Old ids, so that stored data still counts after a rename. */
 var MERGED = {
-  "chin-tucks-1": "chin-tucks",
-  "chin-tucks-2": "chin-tucks",
-  "decompression-am": "decompression",
-  "decompression-pm": "decompression"
+  "gastroc-soleus": ["gastroc"],
+  "pec-trap-levator": ["pec"],
+  "chin-tucks": ["chin-tucks-1", "chin-tucks-2"],
+  "decompression": ["decompression-am", "decompression-pm"],
+  "t-warmup": ["l-warmup"],
+  "t-glute-max": ["l-glute-max"],
+  "t-glute-med": ["l-glute-med"],
+  "t-neck-shrug": ["l-neck-shrug"],
+  "t-cooldown": ["l-cooldown"]
 };
 
 var CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7"/></svg>';
+var CHEVRON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
 
 /* ------------------------------------------------------------ date helpers */
 
@@ -88,6 +120,8 @@ function daysBetween(fromISO, toISO) {
   return Math.round((parseISO(toISO).getTime() - parseISO(fromISO).getTime()) / 86400000);
 }
 
+function weekdayOf(day) { return parseISO(day).getDay(); }
+
 function longDate(text) {
   return parseISO(text).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 }
@@ -104,9 +138,9 @@ function emptyState() {
   return {
     date: todayISO(),
     weekStart: mondayISO(new Date()),
-    dayType: "training",
-    doses: {},
-    counts: {},
+    override: null,      /* a day type chosen by hand, for today only */
+    checks: {},          /* daily + session items done today */
+    weekLog: {},         /* weekly item id -> the dates it was done */
     startDate: null,
     measures: [],
     history: {}
@@ -120,20 +154,21 @@ function load() {
   if (!raw || typeof raw !== "object") { return base; }
   base.date = raw.date || base.date;
   base.weekStart = raw.weekStart || base.weekStart;
-  base.dayType = raw.dayType === "off" ? "off" : "training";
-  base.doses = raw.doses || {};
-  base.counts = raw.counts || {};
+  base.override = raw.override || null;
+  base.checks = raw.checks || {};
+  base.weekLog = raw.weekLog || {};
   base.startDate = raw.startDate || null;
   base.measures = Array.isArray(raw.measures) ? raw.measures : [];
   base.history = raw.history || {};
 
-  /* Move data from the old one-checkbox-per-row format. */
-  if (raw.checks && !raw.doses) {
-    for (var id in raw.checks) {
-      if (!Object.prototype.hasOwnProperty.call(raw.checks, id) || !raw.checks[id]) { continue; }
-      var key = MERGED[id] || id;
-      base.doses[key] = (base.doses[key] || 0) + 1;
-    }
+  /* Carry over the doses format, and any renamed ids. */
+  var source = raw.doses || raw.checks || {};
+  for (var id in source) {
+    if (!Object.prototype.hasOwnProperty.call(source, id) || !source[id]) { continue; }
+    var count = raw.doses ? source[id] : 1;
+    var targets = MERGED[id] || [id];
+    for (var i = 0; i < targets.length && i < count; i++) { base.checks[targets[i]] = true; }
+    if (MERGED[id]) { delete base.checks[id]; }
   }
   return base;
 }
@@ -148,12 +183,12 @@ function rollover() {
   var week = mondayISO(new Date());
   if (state.date !== day) {
     state.date = day;
-    state.doses = {};
+    state.checks = {};
+    state.override = null;
     changed = true;
   }
   if (state.weekStart !== week) {
     state.weekStart = week;
-    state.counts = {};
     changed = true;
   }
   if (changed) { save(); }
@@ -164,37 +199,83 @@ var state = load();
 
 /* ------------------------------------------------------------------- data */
 
-function dayTypeItems() { return state.dayType === "off" ? OFF : TRAINING; }
+function typeOfDay(day) { return WEEK_MAP[weekdayOf(day)]; }
 
-function doseOf(item) { return item.dose || 1; }
-function countOf(item) { return state.doses[item.id] || 0; }
-function itemDone(item) { return countOf(item) >= doseOf(item); }
+function todayType() { return state.override || typeOfDay(todayISO()); }
 
-function dosesDone(items) {
+function sessionItems() { return DAY_TYPES[todayType()].items; }
+
+/* Optional items never count against you. */
+function required(items) {
+  var out = [];
+  for (var i = 0; i < items.length; i++) { if (!items[i].optional) { out.push(items[i]); } }
+  return out;
+}
+
+function doneCount(items) {
   var n = 0;
-  for (var i = 0; i < items.length; i++) { n += Math.min(countOf(items[i]), doseOf(items[i])); }
+  for (var i = 0; i < items.length; i++) { if (state.checks[items[i].id]) { n += 1; } }
   return n;
 }
 
-function dosesTotal(items) {
-  var n = 0;
-  for (var i = 0; i < items.length; i++) { n += doseOf(items[i]); }
+/* ----------------------------------------------------------- weekly items */
+
+function weekDates(id) {
+  var all = state.weekLog[id] || [];
+  var out = [];
+  for (var i = 0; i < all.length; i++) {
+    if (mondayISO(parseISO(all[i])) === state.weekStart) { out.push(all[i]); }
+  }
+  return out;
+}
+
+function weekDone(item) { return weekDates(item.id).length; }
+
+function doneToday(item) { return weekDates(item.id).indexOf(todayISO()) > -1; }
+
+function toggleWeekly(item) {
+  var all = state.weekLog[item.id] || [];
+  var today = todayISO();
+  var at = all.indexOf(today);
+  if (at > -1) { all.splice(at, 1); } else { all.push(today); }
+  state.weekLog[item.id] = all.slice(-40);
+}
+
+function weeklyToday() {
+  var today = weekdayOf(todayISO());
+  var out = [];
+  for (var i = 0; i < WEEKLY.length; i++) {
+    if (WEEKLY[i].days.indexOf(today) > -1) { out.push(WEEKLY[i]); }
+  }
+  return out;
+}
+
+function dayLabel(item) {
+  var names = [];
+  for (var i = 0; i < item.days.length; i++) { names.push(DAY_NAMES[item.days[i]]); }
+  return names.join(" · ");
+}
+
+/* --------------------------------------------------------- the day record */
+
+function todayTasks() { return DAILY.concat(required(sessionItems())); }
+
+function todayTotal() { return todayTasks().length + weeklyToday().length; }
+
+function todayDone() {
+  var n = doneCount(todayTasks());
+  var extra = weeklyToday();
+  for (var i = 0; i < extra.length; i++) { if (doneToday(extra[i])) { n += 1; } }
   return n;
 }
 
-/* One record per day. d/t = doses done and planned. e/et = the every-day list. */
 function recordToday() {
-  var e = dosesDone(DAILY);
-  var d = e + dosesDone(dayTypeItems());
+  var e = doneCount(DAILY);
+  var d = todayDone();
   if (d === 0) {
     delete state.history[state.date];
   } else {
-    state.history[state.date] = {
-      d: d,
-      t: dosesTotal(DAILY) + dosesTotal(dayTypeItems()),
-      e: e,
-      et: dosesTotal(DAILY)
-    };
+    state.history[state.date] = { d: d, t: todayTotal(), e: e, et: DAILY.length };
   }
 }
 
@@ -210,7 +291,6 @@ function levelOf(day) {
   return Math.min(4, Math.ceil(r * 4));
 }
 
-/* A day counts for the streak when every dose of the every-day list is done. */
 function isStreakDay(day) {
   var rec = state.history[day];
   if (!rec) { return false; }
@@ -248,99 +328,67 @@ function el(tag, className, text) {
   return node;
 }
 
-function itemText(parent, item) {
-  var text = el("span", "text");
-  text.appendChild(el("span", "name", item.name));
-  if (item.detail) { text.appendChild(el("span", "detail", item.detail)); }
-  parent.appendChild(text);
-}
-
 function dotNode() {
   var dot = el("span", "dot");
   dot.innerHTML = CHECK_SVG;
   return dot;
 }
 
-function pipCounter(count, target) {
-  var box = el("span", "counter");
-  var pips = el("span", "pips");
-  for (var i = 0; i < target; i++) { pips.appendChild(el("i", i < count ? "pip on" : "pip")); }
-  box.appendChild(pips);
-  box.appendChild(el("b", null, count + "/" + target));
-  if (count >= target) { box.classList.add("full"); }
-  return box;
+function itemText(parent, item, tagText) {
+  var text = el("span", "text");
+  var name = el("span", "name", item.name);
+  if (tagText) { name.appendChild(el("i", "tag", tagText)); }
+  text.appendChild(name);
+  if (item.detail) { text.appendChild(el("span", "detail", item.detail)); }
+  parent.appendChild(text);
 }
 
-/* Once a day: a checkbox. */
 function checkRow(item) {
   var li = el("li", "row");
   var label = el("label", "check");
   var box = document.createElement("input");
   box.type = "checkbox";
-  box.checked = itemDone(item);
-  var dot = dotNode();
+  box.checked = !!state.checks[item.id];
   box.addEventListener("change", function () {
-    if (box.checked) { state.doses[item.id] = 1; } else { delete state.doses[item.id]; }
+    if (box.checked) { state.checks[item.id] = true; } else { delete state.checks[item.id]; }
     li.classList.toggle("done", box.checked);
     afterChange();
   });
   label.appendChild(box);
-  label.appendChild(dot);
-  itemText(label, item);
+  label.appendChild(dotNode());
+  itemText(label, item, item.optional ? "optional" : null);
   li.appendChild(label);
   if (box.checked) { li.classList.add("done"); }
   return li;
 }
 
-/* More than once a day: the whole row adds one dose. It wraps to 0 at the end. */
-function doseRow(item) {
+function weeklyRow(item) {
   var li = el("li", "row");
   var button = el("button", "rowbtn");
   button.type = "button";
-  var count = Math.min(countOf(item), doseOf(item));
-  var done = itemDone(item);
-
+  var on = doneToday(item);
   var dot = dotNode();
-  if (done) { dot.classList.add("on"); }
+  if (on) { dot.classList.add("on"); }
   button.appendChild(dot);
-  itemText(button, item);
-  button.appendChild(pipCounter(count, doseOf(item)));
-  button.setAttribute("aria-label", item.name + ": " + count + " of " + doseOf(item) + " today. Tap to add one.");
-  button.addEventListener("click", function () {
-    var next = countOf(item) + 1;
-    state.doses[item.id] = next > doseOf(item) ? 0 : next;
-    afterChange();
-    renderListBody();
-  });
-  li.appendChild(button);
-  if (done) { li.classList.add("done"); }
-  return li;
-}
+  itemText(button, item, dayLabel(item));
 
-function taskRow(item) { return doseOf(item) > 1 ? doseRow(item) : checkRow(item); }
-
-function weekRow(item) {
-  var li = el("li", "row");
-  var body = el("div", "check");
-  itemText(body, item);
-  li.appendChild(body);
-
-  var count = state.counts[item.id] || 0;
-  var button = el("button", "counter");
-  button.type = "button";
+  var count = weekDone(item);
+  var box = el("span", "counter" + (count >= item.target ? " full" : ""));
   var pips = el("span", "pips");
   for (var i = 0; i < item.target; i++) { pips.appendChild(el("i", i < count ? "pip on" : "pip")); }
-  button.appendChild(pips);
-  button.appendChild(el("b", null, count + "/" + item.target));
-  button.setAttribute("aria-label", item.name + ": " + count + " of " + item.target + " this week. Tap to add one.");
-  if (count >= item.target) { button.classList.add("full"); li.classList.add("done"); }
+  box.appendChild(pips);
+  box.appendChild(el("b", null, count + "/" + item.target));
+  button.appendChild(box);
+
+  button.setAttribute("aria-label", item.name + ": " + count + " of " + item.target + " this week. " +
+    (on ? "Done today. Tap to undo." : "Tap to mark it done today."));
   button.addEventListener("click", function () {
-    var next = (state.counts[item.id] || 0) + 1;
-    state.counts[item.id] = next > item.target ? 0 : next;
+    toggleWeekly(item);
     afterChange();
     renderListBody();
   });
   li.appendChild(button);
+  if (on) { li.classList.add("done"); }
   return li;
 }
 
@@ -358,105 +406,60 @@ function fill(id, items, makeRow) {
   for (var i = 0; i < items.length; i++) { list.appendChild(makeRow(items[i])); }
 }
 
-/* ------------------------------------------------------------------- hero */
-
-function programDay() {
-  if (!state.startDate) { return null; }
-  return daysBetween(state.startDate, todayISO()) + 1;
-}
-
-function ringSVG(percent) {
-  var r = 30;
-  var c = 2 * Math.PI * r;
-  return '<svg class="ring" width="76" height="76" viewBox="0 0 76 76" aria-hidden="true">' +
-    '<circle class="bg" cx="38" cy="38" r="' + r + '"></circle>' +
-    '<circle class="fg" cx="38" cy="38" r="' + r + '" stroke-dasharray="' + c.toFixed(1) + '" ' +
-    'stroke-dashoffset="' + (c * (1 - percent / 100)).toFixed(1) + '" transform="rotate(-90 38 38)"></circle>' +
-    '<text x="38" y="45" text-anchor="middle">' + percent + "</text></svg>";
-}
-
-function renderHero() {
-  var hero = document.getElementById("hero");
-  var items = DAILY.concat(dayTypeItems());
-  var done = dosesDone(items);
-  var total = dosesTotal(items);
-  var percent = Math.round((done / total) * 100);
-  var day = programDay();
-
-  var headline;
-  var note;
-  if (day === null) {
-    headline = "Today";
-    note = "Set a start date on the Progress tab to count the 12 weeks.";
-  } else if (day < 1) {
-    headline = "Day 0";
-    note = "The program starts in " + plural(1 - day, "day") + ".";
-  } else if (day <= PROGRAM_DAYS) {
-    headline = "Day " + day + " <small>/ " + PROGRAM_DAYS + "</small>";
-    note = "Week " + Math.ceil(day / 7) + " of 12 — " + plural(PROGRAM_DAYS - day, "day") + " to the checkpoint";
-  } else {
-    headline = "Day " + day;
-    note = "The 12 weeks are complete.";
-  }
-
-  hero.innerHTML =
-    '<div class="hero-top"><div>' +
-      '<p class="eyebrow">12-week program</p>' +
-      '<p class="day-big">' + headline + "</p>" +
-      '<p class="hero-note">' + note + "</p>" +
-    "</div>" + ringSVG(percent) + "</div>" +
-    '<div class="track"><i style="width:' + percent + '%"></i></div>' +
-    '<p class="hero-doses">' + done + " of " + total + " doses today</p>" +
-    (day !== null && day > PROGRAM_DAYS
-      ? '<p class="alert">Day 84 has passed. If the ankle still pops on every step, book a surgical consult.</p>'
-      : "");
-}
-
-/* --------------------------------------------------------------- sections
-   One block of work = one card on the home screen and one page behind it. */
+/* --------------------------------------------------------------- sections */
 
 var SECTIONS = {
   daily: {
     hash: "#/daily",
-    eyebrow: function () { return "Today"; },
-    name: function () { return "Every day"; },
+    eyebrow: function () { return "Every day"; },
+    name: function () { return "Daily routine"; },
     items: function () { return DAILY; },
-    kind: "dose"
+    row: checkRow
   },
-  day: {
-    hash: "#/day",
-    eyebrow: function () { return "Today"; },
-    name: function () { return state.dayType === "off" ? "Off day" : "Training day"; },
-    items: dayTypeItems,
-    kind: "dose"
+  session: {
+    hash: "#/session",
+    eyebrow: function () { return longDate(todayISO()); },
+    name: function () { return DAY_TYPES[todayType()].name; },
+    items: sessionItems,
+    row: checkRow
+  },
+  today: {
+    hash: "#/today",
+    eyebrow: function () { return "Planned for " + DAY_NAMES[weekdayOf(todayISO())]; },
+    name: function () { return "Also today"; },
+    items: weeklyToday,
+    row: weeklyRow
   },
   week: {
     hash: "#/week",
     eyebrow: function () { return "Week of " + shortDate(state.weekStart); },
     name: function () { return "This week"; },
     items: function () { return WEEKLY; },
-    kind: "week"
+    row: weeklyRow
   }
 };
 
-var SECTION_ORDER = ["daily", "day", "week"];
+var SECTION_ORDER = ["daily", "session", "today", "week"];
 
 function sectionProgress(key) {
-  var section = SECTIONS[key];
-  var items = section.items();
-  if (section.kind === "week") {
+  var items = SECTIONS[key].items();
+  if (key === "today" || key === "week") {
     var done = 0;
     var total = 0;
     for (var i = 0; i < items.length; i++) {
-      total += items[i].target;
-      done += Math.min(state.counts[items[i].id] || 0, items[i].target);
+      if (key === "today") {
+        total += 1;
+        if (doneToday(items[i])) { done += 1; }
+      } else {
+        total += items[i].target;
+        done += Math.min(weekDone(items[i]), items[i].target);
+      }
     }
-    return { done: done, total: total, unit: "left this week" };
+    return { done: done, total: total, unit: key === "today" ? "left today" : "left this week" };
   }
-  return { done: dosesDone(items), total: dosesTotal(items), unit: "doses left today" };
+  var live = required(items);
+  return { done: doneCount(live), total: live.length, unit: "left today" };
 }
-
-var CHEVRON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
 
 function renderCards() {
   var box = document.getElementById("cards");
@@ -465,6 +468,7 @@ function renderCards() {
   for (var i = 0; i < SECTION_ORDER.length; i++) {
     var key = SECTION_ORDER[i];
     var section = SECTIONS[key];
+    if (!section.items().length) { continue; }
     var p = sectionProgress(key);
     var percent = p.total ? Math.round((p.done / p.total) * 100) : 0;
     var full = p.done >= p.total;
@@ -498,13 +502,12 @@ var openKey = null;
 function renderListBody() {
   if (!openKey) { return; }
   var section = SECTIONS[openKey];
-  fill("list-body", section.items(), section.kind === "week" ? weekRow : taskRow);
+  fill("list-body", section.items(), section.row);
   renderListMeter();
 }
 
 function renderListMeter() {
   if (!openKey) { return; }
-  var section = SECTIONS[openKey];
   var p = sectionProgress(openKey);
   var percent = p.total ? Math.round((p.done / p.total) * 100) : 0;
   document.getElementById("list-count").textContent = p.done + "/" + p.total;
@@ -518,28 +521,100 @@ function renderList(key) {
   var section = SECTIONS[key];
   document.getElementById("list-eyebrow").textContent = section.eyebrow();
   document.getElementById("list-title").textContent = section.name();
-
   var controls = document.getElementById("list-controls");
   controls.innerHTML = "";
-  if (key === "day") { controls.appendChild(dayTypeControl()); }
-
+  if (key === "session") { controls.appendChild(dayTypeControl()); }
   renderListBody();
 }
 
+/* ---------------------------------------------------------- day-type pick */
+
 function dayTypeControl() {
+  var wrap = el("div");
   var box = el("div", "segmented");
   box.setAttribute("role", "radiogroup");
   box.setAttribute("aria-label", "Day type");
-  var types = [{ id: "training", label: "Training day" }, { id: "off", label: "Off day" }];
-  for (var i = 0; i < types.length; i++) {
-    var button = el("button", types[i].id === state.dayType ? "active" : null, types[i].label);
+  var keys = ["lift", "hybrid", "off"];
+  for (var i = 0; i < keys.length; i++) {
+    var type = DAY_TYPES[keys[i]];
+    var button = el("button", keys[i] === todayType() ? "active" : null, type.short);
     button.type = "button";
     button.setAttribute("role", "radio");
-    button.setAttribute("data-daytype", types[i].id);
-    button.setAttribute("aria-checked", types[i].id === state.dayType ? "true" : "false");
+    button.setAttribute("data-daytype", keys[i]);
+    button.setAttribute("aria-label", type.name);
+    button.setAttribute("aria-checked", keys[i] === todayType() ? "true" : "false");
     box.appendChild(button);
   }
-  return box;
+  wrap.appendChild(box);
+
+  var planned = typeOfDay(todayISO());
+  var note = el("p", "control-note");
+  if (state.override && state.override !== planned) {
+    note.appendChild(document.createTextNode(
+      DAY_NAMES[weekdayOf(todayISO())] + " is normally a " + DAY_TYPES[planned].name.toLowerCase() + ". "));
+    var reset = el("button", "link", "Use the plan");
+    reset.type = "button";
+    reset.setAttribute("data-reset-daytype", "1");
+    note.appendChild(reset);
+  } else {
+    note.textContent = "From your schedule: Mon / Wed / Fri lift, Tue / Thu / Sat hybrid, Sun off.";
+  }
+  wrap.appendChild(note);
+  return wrap;
+}
+
+/* ------------------------------------------------------------------- hero */
+
+function programDay() {
+  if (!state.startDate) { return null; }
+  return daysBetween(state.startDate, todayISO()) + 1;
+}
+
+function ringSVG(percent) {
+  var r = 30;
+  var c = 2 * Math.PI * r;
+  return '<svg class="ring" width="76" height="76" viewBox="0 0 76 76" aria-hidden="true">' +
+    '<circle class="bg" cx="38" cy="38" r="' + r + '"></circle>' +
+    '<circle class="fg" cx="38" cy="38" r="' + r + '" stroke-dasharray="' + c.toFixed(1) + '" ' +
+    'stroke-dashoffset="' + (c * (1 - percent / 100)).toFixed(1) + '" transform="rotate(-90 38 38)"></circle>' +
+    '<text x="38" y="45" text-anchor="middle">' + percent + "</text></svg>";
+}
+
+function renderHero() {
+  var hero = document.getElementById("hero");
+  if (!hero) { return; }
+  var done = todayDone();
+  var total = todayTotal();
+  var percent = total ? Math.round((done / total) * 100) : 0;
+  var day = programDay();
+
+  var headline;
+  var note;
+  if (day === null) {
+    headline = "Today";
+    note = "Set a start date on the Progress tab to count the 12 weeks.";
+  } else if (day < 1) {
+    headline = "Day 0";
+    note = "The program starts in " + plural(1 - day, "day") + ".";
+  } else if (day <= PROGRAM_DAYS) {
+    headline = "Day " + day + " <small>/ " + PROGRAM_DAYS + "</small>";
+    note = "Week " + Math.ceil(day / 7) + " of 12 — " + plural(PROGRAM_DAYS - day, "day") + " to the checkpoint";
+  } else {
+    headline = "Day " + day;
+    note = "The 12 weeks are complete.";
+  }
+
+  hero.innerHTML =
+    '<div class="hero-top"><div>' +
+      '<p class="eyebrow">' + DAY_TYPES[todayType()].name + "</p>" +
+      '<p class="day-big">' + headline + "</p>" +
+      '<p class="hero-note">' + note + "</p>" +
+    "</div>" + ringSVG(percent) + "</div>" +
+    '<div class="track"><i style="width:' + percent + '%"></i></div>' +
+    '<p class="hero-doses">' + done + " of " + total + " done today</p>" +
+    (day !== null && day > PROGRAM_DAYS
+      ? '<p class="alert">Day 84 has passed. If the ankle still pops on every step, book a surgical consult.</p>'
+      : "");
 }
 
 /* --------------------------------------------------------------- progress */
@@ -576,9 +651,12 @@ function showDay(day) {
   var out = document.getElementById("grid-detail");
   if (!day) { out.textContent = "Tap a square to see that day."; return; }
   var rec = state.history[day];
-  if (!rec) { out.textContent = longDate(day) + " — nothing logged."; return; }
-  out.textContent = longDate(day) + " — " + rec.d + " of " + rec.t + " doses (" +
-    Math.round((rec.d / rec.t) * 100) + "%)" + (isStreakDay(day) ? " · every-day list complete" : "");
+  if (!rec) {
+    out.textContent = longDate(day) + " — nothing logged · " + DAY_TYPES[typeOfDay(day)].name.toLowerCase();
+    return;
+  }
+  out.textContent = longDate(day) + " — " + rec.d + " of " + rec.t + " done (" +
+    Math.round((rec.d / rec.t) * 100) + "%)" + (isStreakDay(day) ? " · daily routine complete" : "");
 }
 
 function renderStats() {
@@ -656,7 +734,7 @@ function renderCheckpoint() {
 function renderMeasures() {
   var body = document.getElementById("measure-body");
   body.innerHTML = "";
-  body.appendChild(el("p", "note", "One measurement each week. Kneel, drive the knee to the wall, and record the distance from the toes."));
+  body.appendChild(el("p", "note", "One measurement each week, on Wednesday. Drive the knee to the wall and record the distance from the toes."));
 
   var thisWeek = null;
   for (var i = 0; i < state.measures.length; i++) {
@@ -704,7 +782,7 @@ function renderMeasures() {
 /* ------------------------------------------------------- render + router */
 
 function setDayType(type) {
-  state.dayType = type;
+  state.override = (type === typeOfDay(todayISO())) ? null : type;
   recordToday();
   save();
   render();
@@ -714,21 +792,21 @@ function routeOf(hash) {
   var clean = String(hash || "").replace(/^#/, "");
   if (clean === "/progress") { return { view: "progress" }; }
   if (clean === "/daily") { return { view: "list", key: "daily" }; }
-  if (clean === "/day") { return { view: "list", key: "day" }; }
+  if (clean === "/session") { return { view: "list", key: "session" }; }
+  if (clean === "/today") { return { view: "list", key: "today" }; }
   if (clean === "/week") { return { view: "list", key: "week" }; }
   return { view: "home" };
 }
 
 function render() {
   var route = routeOf(window.location.hash);
+  if (route.view === "list" && !SECTIONS[route.key].items().length) { route = { view: "home" }; }
   document.getElementById("today-label").textContent = longDate(todayISO());
 
   document.getElementById("view-home").hidden = route.view !== "home";
   document.getElementById("view-list").hidden = route.view !== "list";
   document.getElementById("view-progress").hidden = route.view !== "progress";
-
-  var back = document.getElementById("back");
-  back.hidden = route.view !== "list";
+  document.getElementById("back").hidden = route.view !== "list";
   document.getElementById("topbar-title").textContent =
     route.view === "list" ? SECTIONS[route.key].name() : "Mobility";
 
@@ -746,12 +824,9 @@ function render() {
     openKey = null;
     renderHero();
     renderCards();
-    var buttons = document.querySelectorAll("#view-home [data-daytype]");
-    for (var j = 0; j < buttons.length; j++) {
-      var on = buttons[j].getAttribute("data-daytype") === state.dayType;
-      buttons[j].classList.toggle("active", on);
-      buttons[j].setAttribute("aria-checked", on ? "true" : "false");
-    }
+    var controls = document.getElementById("home-controls");
+    controls.innerHTML = "";
+    controls.appendChild(dayTypeControl());
   } else if (route.view === "list") {
     renderList(route.key);
   } else {
@@ -775,6 +850,8 @@ document.getElementById("back").addEventListener("click", function () {
 });
 
 document.addEventListener("click", function (event) {
+  var reset = event.target.closest("[data-reset-daytype]");
+  if (reset) { state.override = null; recordToday(); save(); render(); return; }
   var toggle = event.target.closest("[data-daytype]");
   if (toggle) { setDayType(toggle.getAttribute("data-daytype")); }
 });

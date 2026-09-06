@@ -523,3 +523,36 @@ input[type="number"] { width: 5.5rem; }
 .detail-meter b { font-size: 0.9375rem; color: var(--ink); font-variant-numeric: tabular-nums; }
 .detail-head .track { margin-top: 0.5rem; }
 #list-controls .segmented { margin-bottom: 1rem; }
+
+
+/* -------------------------------------------------------- day-type notes */
+
+.control-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+
+.control-note .link { color: var(--accent); font-size: inherit; }
+
+.segmented button { font-size: 0.875rem; }
+
+/* A small tag beside a name: "optional", or the planned weekdays. */
+.tag {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.0625rem 0.375rem;
+  border: 1px solid var(--line-2);
+  border-radius: 5px;
+  font-size: 0.625rem;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+
+.row.done .tag { border-color: var(--line); }

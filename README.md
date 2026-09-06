@@ -6,32 +6,41 @@ backend. All data stays in the browser through `localStorage`.
 
 ## What it does
 
+The app holds one program, mapped to a fixed week.
+
+| Day | Type | On top of the daily routine |
+| --- | --- | --- |
+| Mon / Wed / Fri | Lift | Warm-up, glute max, glute med, neck / shrug, cooldown |
+| Tue / Thu / Sat | Hybrid | Warm-up, glute med (+ glute max, optional) |
+| Sun | Off | Couch stretch, back / core block, incline walk, extra stretch volume |
+
 The app has two tabs.
 
 ### Today
 
 | Part | Behavior |
 | --- | --- |
-| **Hero** | The program day (for example "Day 42 / 84"), the week, the days to the checkpoint, and a ring with today's completion. |
-| **Every day** | The daily list. An exercise you do once shows a checkbox. An exercise you do more than once shows a dose counter — each tap adds one, and it wraps to 0 after the last dose. |
-| **Training day / Off day** | A toggle. It swaps the second checklist. It keeps the last selection. |
-| **This week** | Counters with a weekly target. Each tap adds one. The count goes back to 0 after the target. |
+| **Hero** | The program day ("Day 42 / 84"), the week, the days to the checkpoint, and a ring for today. |
+| **Day type** | Taken from the weekday. You can change it for today; the change clears at midnight. |
+| **Daily routine** | 14 items, every day. |
+| **The session** | The add-ons for the day type. An `optional` item is outside the count. |
+| **Also today** | The weekly items planned for this weekday. Only shows when there are some. |
+| **This week** | All 5 weekly items, with their planned days and the count for the week. |
+
+Tap a card to open its full list on its own page.
 
 ### Progress
 
 | Part | Behavior |
 | --- | --- |
-| **Streak / Best / Full days** | A day counts when you complete every dose of the every-day list. |
-| **Grid** | 84 squares — 12 columns of 7 days. Each square gets brighter as you complete more of the day's doses. Tap a square to see the numbers. |
-| **Ankle checkpoint** | The week of 12, the days that remain, and the start date control. |
-| **Knee-to-wall** | One measurement each week, with the history below. |
+| **Streak / Best / Full days** | A day counts when the 14-item daily routine is complete. |
+| **Grid** | 84 squares — 12 columns of 7 days. A square brightens with the share of that day's work. Tap it for the numbers. |
+| **Ankle checkpoint** | The week of 12, the days that remain, and the start date. |
+| **Knee-to-wall** | One measurement each week, with the history. |
 
-- The daily checkboxes go back to empty at midnight.
-- The weekly counters go back to 0 every Monday.
-- After day 84, the checkpoint card tells you to book a surgical consult if
-  the ankle still pops on every step.
-- The knee-to-wall field is on the Progress tab. The app keeps one value for
-  each week and shows the history.
+- The daily and session checkboxes clear at midnight.
+- A weekly item stores the date you did it. The count is the dates inside the current week.
+- After day 84, the app tells you to book a surgical consult if the ankle still pops.
 - Add the page to your Home Screen. It then opens with no browser bar.
 
 ## How to run it
