@@ -6,19 +6,33 @@ backend. All data stays in the browser through `localStorage`.
 
 ## What it does
 
+The app has two tabs.
+
+### Today
+
 | Part | Behavior |
 | --- | --- |
+| **Hero** | The program day (for example "Day 42 / 84"), the week, the days to the checkpoint, and a ring with today's completion. |
 | **Every day** | A checklist that you complete each day. |
 | **Training day / Off day** | A toggle. It swaps the second checklist. It keeps the last selection. |
-| **Spread across the week** | Tap-to-increment counters with a weekly target. The count goes back to 0 after it hits the target. |
-| **Ankle checkpoint** | You set the program start date once. The card then shows the week (of 12) and the days that remain. |
+| **This week** | Counters with a weekly target. Each tap adds one. The count goes back to 0 after the target. |
+
+### Progress
+
+| Part | Behavior |
+| --- | --- |
+| **Streak / Best / Full days** | A day counts when you complete the full every-day list. |
+| **Grid** | 84 squares — 12 columns of 7 days. Each square gets brighter as you complete more of that day. Tap a square to see the numbers. |
+| **Ankle checkpoint** | The week of 12, the days that remain, and the start date control. |
+| **Knee-to-wall** | One measurement each week, with the history below. |
 
 - The daily checkboxes go back to empty at midnight.
 - The weekly counters go back to 0 every Monday.
 - After day 84, the checkpoint card tells you to book a surgical consult if
   the ankle still pops on every step.
-- The knee-to-wall item has a field for the measurement in centimetres. The
-  app keeps the value for each week and shows the last one.
+- The knee-to-wall field is on the Progress tab. The app keeps one value for
+  each week and shows the history.
+- Add the page to your Home Screen. It then opens with no browser bar.
 
 ## How to run it
 
@@ -43,9 +57,11 @@ python3 -m http.server 8000    # then open http://localhost:8000
 
 | File | Content |
 | --- | --- |
-| `index.html` | The page structure. |
-| `styles.css` | All styles. Light and dark, mobile first. |
+| `index.html` | The page structure and the two tabs. |
+| `styles.css` | All styles. Dark, mobile first. |
 | `app.js` | The exercise data, the storage, the reset rules, and the display. |
+| `manifest.json` | The web app manifest, for the Home Screen. |
+| `icon.svg`, `icon-180.png`, `icon-512.png` | The app icon. |
 
 ## How to change the exercises
 

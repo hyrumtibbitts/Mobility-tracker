@@ -1,7 +1,7 @@
-/* Mobility & rehab routine tracker — plain JS, no build step, no backend. */
+/* Mobility & rehab tracker — plain JS, no build step, no backend. */
 
 var STORAGE_KEY = "mobility-tracker-v1";
-var CHECKPOINT_DAYS = 84; /* 12 weeks */
+var PROGRAM_DAYS = 84; /* 12 weeks */
 
 /* ---------------------------------------------------------------- content */
 
@@ -41,8 +41,10 @@ var WEEKLY = [
   { id: "w-ytw", name: "Y-T-W raises", detail: "2–3 × 10–15", target: 3 },
   { id: "w-face-pulls", name: "Face pulls or band pull-aparts", detail: "", target: 3 },
   { id: "w-photo", name: "Side profile check-in photo", detail: "", target: 1 },
-  { id: "w-knee-to-wall", name: "Knee-to-wall dorsiflexion measure", detail: "Record the distance in centimetres", target: 1, measure: true }
+  { id: "w-knee-to-wall", name: "Knee-to-wall dorsiflexion measure", detail: "Record the distance in centimetres on the Progress tab", target: 1 }
 ];
+
+var CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7"/></svg>';
 
 /* ------------------------------------------------------------ date helpers */
 
@@ -54,41 +56,39 @@ function iso(date) {
   return date.getFullYear() + "-" + m + "-" + d;
 }
 
-function todayISO() {
-  return iso(new Date());
-}
+function todayISO() { return iso(new Date()); }
 
 /* The Monday of the week that holds the given date. */
 function mondayISO(date) {
   var d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  var offset = (d.getDay() + 6) % 7; /* Sunday = 6 */
-  d.setDate(d.getDate() - offset);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
   return iso(d);
 }
 
 function parseISO(text) {
-  var parts = String(text).split("-");
-  return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  var p = String(text).split("-");
+  return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+}
+
+function shiftISO(text, days) {
+  var d = parseISO(text);
+  d.setDate(d.getDate() + days);
+  return iso(d);
 }
 
 function daysBetween(fromISO, toISO) {
-  var ms = parseISO(toISO).getTime() - parseISO(fromISO).getTime();
-  return Math.round(ms / 86400000);
+  return Math.round((parseISO(toISO).getTime() - parseISO(fromISO).getTime()) / 86400000);
 }
 
 function longDate(text) {
-  return parseISO(text).toLocaleDateString(undefined, {
-    weekday: "long", month: "long", day: "numeric"
-  });
+  return parseISO(text).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 }
 
 function shortDate(text) {
   return parseISO(text).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function plural(count, word) {
-  return count + " " + word + (count === 1 ? "" : "s");
-}
+function plural(n, word) { return n + " " + word + (n === 1 ? "" : "s"); }
 
 /* ----------------------------------------------------------------- storage */
 
@@ -100,37 +100,29 @@ function emptyState() {
     checks: {},
     counts: {},
     startDate: null,
-    measures: []
+    measures: [],
+    history: {}
   };
 }
 
 function load() {
-  var state;
-  try {
-    state = JSON.parse(localStorage.getItem(STORAGE_KEY));
-  } catch (err) {
-    state = null;
-  }
-  if (!state || typeof state !== "object") {
-    return emptyState();
-  }
+  var raw = null;
+  try { raw = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch (err) { raw = null; }
   var base = emptyState();
-  base.date = state.date || base.date;
-  base.weekStart = state.weekStart || base.weekStart;
-  base.dayType = state.dayType === "off" ? "off" : "training";
-  base.checks = state.checks || {};
-  base.counts = state.counts || {};
-  base.startDate = state.startDate || null;
-  base.measures = Array.isArray(state.measures) ? state.measures : [];
+  if (!raw || typeof raw !== "object") { return base; }
+  base.date = raw.date || base.date;
+  base.weekStart = raw.weekStart || base.weekStart;
+  base.dayType = raw.dayType === "off" ? "off" : "training";
+  base.checks = raw.checks || {};
+  base.counts = raw.counts || {};
+  base.startDate = raw.startDate || null;
+  base.measures = Array.isArray(raw.measures) ? raw.measures : [];
+  base.history = raw.history || {};
   return base;
 }
 
 function save() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (err) {
-    /* Private mode, or the quota is full. The app still works for this visit. */
-  }
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (err) { /* full or private */ }
 }
 
 /* Clear the daily checks at midnight, and the weekly counts each Monday. */
@@ -154,7 +146,68 @@ function rollover() {
 
 var state = load();
 
-/* ------------------------------------------------------------------- build */
+/* ------------------------------------------------------------------- data */
+
+function dayTypeItems() { return state.dayType === "off" ? OFF : TRAINING; }
+
+function doneCount(items) {
+  var n = 0;
+  for (var i = 0; i < items.length; i++) { if (state.checks[items[i].id]) { n += 1; } }
+  return n;
+}
+
+/* One record per day: d = items done, t = items in play, e = every-day items done. */
+function recordToday() {
+  var e = doneCount(DAILY);
+  var d = e + doneCount(dayTypeItems());
+  if (d === 0) {
+    delete state.history[state.date];
+  } else {
+    state.history[state.date] = { d: d, t: DAILY.length + dayTypeItems().length, e: e };
+  }
+}
+
+function ratioOf(day) {
+  var rec = state.history[day];
+  if (!rec || !rec.t) { return 0; }
+  return Math.min(1, rec.d / rec.t);
+}
+
+function levelOf(day) {
+  var r = ratioOf(day);
+  if (r <= 0) { return 0; }
+  return Math.min(4, Math.ceil(r * 4));
+}
+
+/* A day counts for the streak when the whole every-day list is done. */
+function isStreakDay(day) {
+  var rec = state.history[day];
+  return !!rec && rec.e >= DAILY.length;
+}
+
+function currentStreak() {
+  var day = todayISO();
+  if (!isStreakDay(day)) { day = shiftISO(day, -1); }
+  var n = 0;
+  while (isStreakDay(day)) { n += 1; day = shiftISO(day, -1); }
+  return n;
+}
+
+function bestStreak() {
+  var days = Object.keys(state.history).sort();
+  var best = 0;
+  var run = 0;
+  var previous = null;
+  for (var i = 0; i < days.length; i++) {
+    if (!isStreakDay(days[i])) { run = 0; previous = days[i]; continue; }
+    run = (previous && daysBetween(previous, days[i]) === 1 && isStreakDay(previous)) ? run + 1 : 1;
+    if (run > best) { best = run; }
+    previous = days[i];
+  }
+  return best;
+}
+
+/* ------------------------------------------------------------------ build */
 
 function el(tag, className, text) {
   var node = document.createElement(tag);
@@ -166,9 +219,7 @@ function el(tag, className, text) {
 function itemText(parent, item) {
   var text = el("span", "text");
   text.appendChild(el("span", "name", item.name));
-  if (item.detail) {
-    text.appendChild(el("span", "detail", item.detail));
-  }
+  if (item.detail) { text.appendChild(el("span", "detail", item.detail)); }
   parent.appendChild(text);
 }
 
@@ -178,17 +229,18 @@ function checkRow(item) {
   var box = document.createElement("input");
   box.type = "checkbox";
   box.checked = !!state.checks[item.id];
+  var dot = el("span", "dot");
+  dot.innerHTML = CHECK_SVG;
   box.addEventListener("change", function () {
-    if (box.checked) {
-      state.checks[item.id] = true;
-    } else {
-      delete state.checks[item.id];
-    }
+    if (box.checked) { state.checks[item.id] = true; } else { delete state.checks[item.id]; }
     li.classList.toggle("done", box.checked);
+    recordToday();
     save();
-    renderProgress();
+    renderProgressLabels();
+    renderHero();
   });
   label.appendChild(box);
+  label.appendChild(dot);
   itemText(label, item);
   li.appendChild(label);
   if (box.checked) { li.classList.add("done"); }
@@ -202,126 +254,184 @@ function countRow(item) {
   li.appendChild(body);
 
   var count = state.counts[item.id] || 0;
-  var button = el("button", "counter", count + "/" + item.target);
+  var button = el("button", "counter");
   button.type = "button";
+  var pips = el("span", "pips");
+  for (var i = 0; i < item.target; i++) {
+    pips.appendChild(el("i", i < count ? "pip on" : "pip"));
+  }
+  button.appendChild(pips);
+  button.appendChild(el("b", null, count + "/" + item.target));
   button.setAttribute("aria-label", item.name + ": " + count + " of " + item.target + " this week. Tap to add one.");
+  if (count >= item.target) { button.classList.add("full"); li.classList.add("done"); }
   button.addEventListener("click", function () {
     var next = (state.counts[item.id] || 0) + 1;
-    if (next > item.target) { next = 0; }
-    state.counts[item.id] = next;
+    state.counts[item.id] = next > item.target ? 0 : next;
     save();
-    render();
+    renderToday();
   });
-  if (count >= item.target) {
-    li.classList.add("done");
-    button.classList.add("full");
-  }
   li.appendChild(button);
-
-  if (item.measure) {
-    li.appendChild(measureField(item));
-  }
   return li;
 }
 
-function measureField(item) {
-  var box = el("div", "measure");
-  var label = el("label", "measure-label", "This week (cm)");
-  var input = document.createElement("input");
-  input.type = "number";
-  input.step = "0.5";
-  input.min = "0";
-  input.inputMode = "decimal";
-  input.placeholder = "–";
-  input.id = "measure-" + item.id;
-  label.setAttribute("for", input.id);
-
-  var thisWeek = null;
-  var previous = null;
-  for (var i = 0; i < state.measures.length; i++) {
-    var entry = state.measures[i];
-    if (entry.week === state.weekStart) { thisWeek = entry; }
-    else if (!previous || entry.week > previous.week) { previous = entry; }
-  }
-  if (thisWeek) { input.value = thisWeek.value; }
-
-  input.addEventListener("change", function () {
-    var value = parseFloat(input.value);
-    var kept = [];
-    for (var j = 0; j < state.measures.length; j++) {
-      if (state.measures[j].week !== state.weekStart) { kept.push(state.measures[j]); }
-    }
-    if (!isNaN(value)) {
-      kept.push({ week: state.weekStart, date: todayISO(), value: value });
-    }
-    kept.sort(function (a, b) { return a.week < b.week ? -1 : 1; });
-    state.measures = kept.slice(-24);
-    save();
-    render();
-  });
-
-  box.appendChild(label);
-  box.appendChild(input);
-  if (previous) {
-    box.appendChild(el("span", "measure-prev", "Last: " + previous.value + " cm on " + shortDate(previous.date)));
-  }
-  return box;
-}
-
-function fill(listId, items, makeRow) {
-  var list = document.getElementById(listId);
+function fill(id, items, makeRow) {
+  var list = document.getElementById(id);
   list.innerHTML = "";
-  for (var i = 0; i < items.length; i++) {
-    list.appendChild(makeRow(items[i]));
+  for (var i = 0; i < items.length; i++) { list.appendChild(makeRow(items[i])); }
+}
+
+/* ------------------------------------------------------------------- hero */
+
+function programDay() {
+  if (!state.startDate) { return null; }
+  return daysBetween(state.startDate, todayISO()) + 1;
+}
+
+function ringSVG(percent) {
+  var r = 30;
+  var c = 2 * Math.PI * r;
+  var offset = c * (1 - percent / 100);
+  return '<svg class="ring" width="76" height="76" viewBox="0 0 76 76" aria-hidden="true">' +
+    '<circle class="bg" cx="38" cy="38" r="' + r + '"></circle>' +
+    '<circle class="fg" cx="38" cy="38" r="' + r + '" stroke-dasharray="' + c.toFixed(1) + '" ' +
+    'stroke-dashoffset="' + offset.toFixed(1) + '" transform="rotate(-90 38 38)"></circle>' +
+    '<text x="38" y="45" text-anchor="middle">' + percent + '</text></svg>';
+}
+
+function renderHero() {
+  var hero = document.getElementById("hero");
+  var items = DAILY.concat(dayTypeItems());
+  var percent = Math.round((doneCount(items) / items.length) * 100);
+  var day = programDay();
+
+  var headline;
+  var note;
+  if (day === null) {
+    headline = "Today";
+    note = "Set a start date on the Progress tab to count the 12 weeks.";
+  } else if (day < 1) {
+    headline = "Day 0";
+    note = "The program starts in " + plural(1 - day, "day") + ".";
+  } else if (day <= PROGRAM_DAYS) {
+    headline = 'Day ' + day + ' <small>/ ' + PROGRAM_DAYS + "</small>";
+    note = "Week " + Math.ceil(day / 7) + " of 12 — " + plural(PROGRAM_DAYS - day, "day") + " to the checkpoint";
+  } else {
+    headline = "Day " + day;
+    note = "The 12 weeks are complete.";
   }
+
+  hero.innerHTML =
+    '<div class="hero-top"><div>' +
+      '<p class="eyebrow">12-week program</p>' +
+      '<p class="day-big">' + headline + "</p>" +
+      '<p class="hero-note">' + note + "</p>" +
+    "</div>" + ringSVG(percent) + "</div>" +
+    '<div class="track"><i style="width:' + percent + '%"></i></div>' +
+    (day !== null && day > PROGRAM_DAYS
+      ? '<p class="alert">Day 84 has passed. If the ankle still pops on every step, book a surgical consult.</p>'
+      : "");
 }
 
-function dayTypeItems() {
-  return state.dayType === "off" ? OFF : TRAINING;
-}
-
-function doneCount(items) {
-  var n = 0;
-  for (var i = 0; i < items.length; i++) {
-    if (state.checks[items[i].id]) { n += 1; }
-  }
-  return n;
-}
-
-function renderProgress() {
+function renderProgressLabels() {
   var day = dayTypeItems();
-  document.getElementById("daily-progress").textContent =
-    doneCount(DAILY) + " of " + DAILY.length + " done";
-  document.getElementById("daytype-progress").textContent =
-    doneCount(day) + " of " + day.length + " done";
+  var d1 = document.getElementById("daily-progress");
+  d1.textContent = doneCount(DAILY) + "/" + DAILY.length;
+  d1.classList.toggle("full", doneCount(DAILY) === DAILY.length);
 
-  var weekDone = 0;
-  var weekTotal = 0;
+  var d2 = document.getElementById("daytype-progress");
+  d2.textContent = doneCount(day) + "/" + day.length;
+  d2.classList.toggle("full", doneCount(day) === day.length);
+
+  var done = 0;
+  var total = 0;
   for (var i = 0; i < WEEKLY.length; i++) {
-    weekTotal += WEEKLY[i].target;
-    weekDone += Math.min(state.counts[WEEKLY[i].id] || 0, WEEKLY[i].target);
+    total += WEEKLY[i].target;
+    done += Math.min(state.counts[WEEKLY[i].id] || 0, WEEKLY[i].target);
   }
-  document.getElementById("weekly-progress").textContent =
-    weekDone + " of " + weekTotal + " done — week of " + shortDate(state.weekStart);
+  var d3 = document.getElementById("weekly-progress");
+  d3.textContent = done + "/" + total;
+  d3.classList.toggle("full", done === total);
 }
 
-/* ------------------------------------------------------------- checkpoint */
+/* --------------------------------------------------------------- progress */
+
+var picked = null;
+
+function renderGrid() {
+  var grid = document.getElementById("grid");
+  grid.innerHTML = "";
+
+  var first = state.startDate ? state.startDate : shiftISO(todayISO(), -(PROGRAM_DAYS - 1));
+  document.getElementById("grid-title").textContent = state.startDate ? "12 weeks" : "Last 12 weeks";
+
+  var today = todayISO();
+  var active = 0;
+  for (var i = 0; i < PROGRAM_DAYS; i++) {
+    var day = shiftISO(first, i);
+    var level = levelOf(day);
+    if (level > 0) { active += 1; }
+    var cell = document.createElement("button");
+    cell.type = "button";
+    cell.className = "cell l" + level;
+    if (daysBetween(today, day) > 0) { cell.className += " future"; }
+    if (day === today) { cell.className += " today"; }
+    if (day === picked) { cell.className += " picked"; }
+    cell.setAttribute("data-day", day);
+    cell.setAttribute("aria-label", shortDate(day) + ": " + Math.round(ratioOf(day) * 100) + "% done");
+    grid.appendChild(cell);
+  }
+  document.getElementById("grid-count").textContent = active + "/" + PROGRAM_DAYS + " days";
+  showDay(picked);
+}
+
+function showDay(day) {
+  var out = document.getElementById("grid-detail");
+  if (!day) {
+    out.textContent = "Tap a square to see that day.";
+    return;
+  }
+  var rec = state.history[day];
+  if (!rec) {
+    out.textContent = longDate(day) + " — nothing logged.";
+    return;
+  }
+  out.textContent = longDate(day) + " — " + rec.d + " of " + rec.t + " done (" +
+    Math.round((rec.d / rec.t) * 100) + "%)" + (rec.e >= DAILY.length ? " · every-day list complete" : "");
+}
+
+function renderStats() {
+  var row = document.getElementById("stat-row");
+  row.innerHTML = "";
+  var done = 0;
+  for (var key in state.history) {
+    if (Object.prototype.hasOwnProperty.call(state.history, key) && isStreakDay(key)) { done += 1; }
+  }
+  var stats = [
+    { value: currentStreak(), label: "Streak" },
+    { value: bestStreak(), label: "Best" },
+    { value: done, label: "Full days" }
+  ];
+  for (var i = 0; i < stats.length; i++) {
+    var box = el("div", "stat");
+    box.appendChild(el("b", null, String(stats[i].value)));
+    box.appendChild(el("span", null, stats[i].label));
+    row.appendChild(box);
+  }
+}
 
 function renderCheckpoint() {
   var body = document.getElementById("checkpoint-body");
   body.innerHTML = "";
 
   if (!state.startDate) {
-    var text = el("p", "note", "Set the day you started the program. The app then counts the 12 weeks for you.");
-    var form = el("form", "start-form");
+    body.appendChild(el("p", "note", "Set the day you started the program. The app then counts the 12 weeks and fills the grid."));
+    var form = el("form", "field-row");
     var input = document.createElement("input");
     input.type = "date";
-    input.id = "start-date";
     input.required = true;
     input.max = todayISO();
     input.value = todayISO();
-    var label = el("label", "sr-only", "Program start date");
-    label.setAttribute("for", "start-date");
+    input.setAttribute("aria-label", "Program start date");
     var button = el("button", "primary", "Set start date");
     button.type = "submit";
     form.addEventListener("submit", function (event) {
@@ -331,35 +441,21 @@ function renderCheckpoint() {
       save();
       render();
     });
-    form.appendChild(label);
     form.appendChild(input);
     form.appendChild(button);
-    body.appendChild(text);
     body.appendChild(form);
     return;
   }
 
-  var elapsed = daysBetween(state.startDate, todayISO());
-  var dayNumber = elapsed + 1;
-
-  if (dayNumber < 1) {
-    body.appendChild(el("p", "big", "The program starts in " + plural(1 - dayNumber, "day") + "."));
-  } else if (dayNumber <= CHECKPOINT_DAYS) {
-    var week = Math.ceil(dayNumber / 7);
-    var left = CHECKPOINT_DAYS - dayNumber;
-    body.appendChild(el("p", "big", "Week " + week + " of 12 — day " + dayNumber + " of " + CHECKPOINT_DAYS));
-    var bar = el("div", "bar");
-    var fillBar = el("div", "bar-fill");
-    fillBar.style.width = Math.round((dayNumber / CHECKPOINT_DAYS) * 100) + "%";
-    bar.appendChild(fillBar);
-    body.appendChild(bar);
-    body.appendChild(el("p", "note", left === 0
-      ? "The checkpoint is today."
-      : plural(left, "day") + " to the checkpoint."));
+  var day = programDay();
+  if (day > PROGRAM_DAYS) {
+    body.appendChild(el("p", "alert", "The 12 weeks are complete (day " + day + "). If the ankle still pops on every step, book a surgical consult."));
+  } else if (day < 1) {
+    body.appendChild(el("p", "big", "The program starts in " + plural(1 - day, "day") + "."));
   } else {
-    var card = el("p", "alert",
-      "The 12 weeks are complete (day " + dayNumber + "). If the ankle still pops on every step, book a surgical consult.");
-    body.appendChild(card);
+    body.appendChild(el("p", "big", "Week " + Math.ceil(day / 7) + " of 12"));
+    var left = PROGRAM_DAYS - day;
+    body.appendChild(el("p", "note", left === 0 ? "The checkpoint is today." : plural(left, "day") + " to the checkpoint."));
   }
 
   var change = el("button", "link", "Change start date");
@@ -375,52 +471,132 @@ function renderCheckpoint() {
   body.appendChild(foot);
 }
 
+function renderMeasures() {
+  var body = document.getElementById("measure-body");
+  body.innerHTML = "";
+  body.appendChild(el("p", "note", "One measurement per week. Kneel, drive the knee to the wall, and record the distance from the toes."));
+
+  var thisWeek = null;
+  for (var i = 0; i < state.measures.length; i++) {
+    if (state.measures[i].week === state.weekStart) { thisWeek = state.measures[i]; }
+  }
+
+  var row = el("div", "field-row");
+  var input = document.createElement("input");
+  input.type = "number";
+  input.step = "0.5";
+  input.min = "0";
+  input.inputMode = "decimal";
+  input.placeholder = "cm";
+  input.setAttribute("aria-label", "Knee-to-wall distance this week, in centimetres");
+  if (thisWeek) { input.value = thisWeek.value; }
+  input.addEventListener("change", function () {
+    var value = parseFloat(input.value);
+    var kept = [];
+    for (var j = 0; j < state.measures.length; j++) {
+      if (state.measures[j].week !== state.weekStart) { kept.push(state.measures[j]); }
+    }
+    if (!isNaN(value)) { kept.push({ week: state.weekStart, date: todayISO(), value: value }); }
+    kept.sort(function (a, b) { return a.week < b.week ? -1 : 1; });
+    state.measures = kept.slice(-24);
+    save();
+    renderMeasures();
+  });
+  row.appendChild(el("span", "note", "Week of " + shortDate(state.weekStart)));
+  row.appendChild(input);
+  body.appendChild(row);
+
+  if (state.measures.length) {
+    var list = el("ul", "history");
+    for (var k = state.measures.length - 1; k >= 0 && k > state.measures.length - 9; k--) {
+      var entry = state.measures[k];
+      var li = document.createElement("li");
+      li.appendChild(el("span", null, shortDate(entry.date)));
+      li.appendChild(el("b", null, entry.value + " cm"));
+      list.appendChild(li);
+    }
+    body.appendChild(list);
+  }
+}
+
 /* ----------------------------------------------------------------- render */
 
-function render() {
-  document.getElementById("today-label").textContent = longDate(todayISO());
-  renderCheckpoint();
+function renderToday() {
+  renderHero();
   fill("daily-list", DAILY, checkRow);
   fill("daytype-list", dayTypeItems(), checkRow);
   fill("weekly-list", WEEKLY, countRow);
-
   var buttons = document.querySelectorAll("[data-daytype]");
   for (var i = 0; i < buttons.length; i++) {
-    var active = buttons[i].getAttribute("data-daytype") === state.dayType;
-    buttons[i].classList.toggle("active", active);
-    buttons[i].setAttribute("aria-checked", active ? "true" : "false");
+    var on = buttons[i].getAttribute("data-daytype") === state.dayType;
+    buttons[i].classList.toggle("active", on);
+    buttons[i].setAttribute("aria-checked", on ? "true" : "false");
   }
-  renderProgress();
+  renderProgressLabels();
+}
+
+function render() {
+  document.getElementById("today-label").textContent = longDate(todayISO());
+  renderToday();
+  renderStats();
+  renderGrid();
+  renderCheckpoint();
+  renderMeasures();
 }
 
 /* ------------------------------------------------------------------ start */
 
-var toggles = document.querySelectorAll("[data-daytype]");
-for (var t = 0; t < toggles.length; t++) {
-  toggles[t].addEventListener("click", function (event) {
-    state.dayType = event.currentTarget.getAttribute("data-daytype");
-    save();
-    render();
+function showView(name) {
+  document.getElementById("view-today").hidden = name !== "today";
+  document.getElementById("view-progress").hidden = name !== "progress";
+  var tabs = document.querySelectorAll(".tab");
+  for (var i = 0; i < tabs.length; i++) {
+    var on = tabs[i].getAttribute("data-view") === name;
+    if (on) { tabs[i].setAttribute("aria-current", "page"); } else { tabs[i].removeAttribute("aria-current"); }
+  }
+  if (name === "progress") { renderStats(); renderGrid(); }
+  window.scrollTo(0, 0);
+}
+
+var tabs = document.querySelectorAll(".tab");
+for (var t = 0; t < tabs.length; t++) {
+  tabs[t].addEventListener("click", function (event) {
+    showView(event.currentTarget.getAttribute("data-view"));
   });
 }
+
+var toggles = document.querySelectorAll("[data-daytype]");
+for (var g = 0; g < toggles.length; g++) {
+  toggles[g].addEventListener("click", function (event) {
+    state.dayType = event.currentTarget.getAttribute("data-daytype");
+    recordToday();
+    save();
+    renderToday();
+  });
+}
+
+document.getElementById("grid").addEventListener("click", function (event) {
+  var cell = event.target.closest(".cell");
+  if (!cell) { return; }
+  picked = cell.getAttribute("data-day");
+  renderGrid();
+});
 
 document.getElementById("reset-all").addEventListener("click", function () {
   if (!window.confirm("Erase all data on this device? This cannot be undone.")) { return; }
   try { localStorage.removeItem(STORAGE_KEY); } catch (err) { /* ignore */ }
   state = emptyState();
+  picked = null;
   save();
   render();
 });
 
 /* Keep the page correct if it stays open past midnight. */
-function checkRollover() {
-  if (rollover()) { render(); }
-}
+function checkRollover() { if (rollover()) { render(); } }
 window.setInterval(checkRollover, 30000);
-document.addEventListener("visibilitychange", function () {
-  if (!document.hidden) { checkRollover(); }
-});
+document.addEventListener("visibilitychange", function () { if (!document.hidden) { checkRollover(); } });
 window.addEventListener("focus", checkRollover);
 
 rollover();
+recordToday();
 render();

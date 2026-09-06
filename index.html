@@ -3,57 +3,98 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Mobility &amp; Rehab Tracker</title>
-    <meta name="description" content="A daily mobility and rehab routine tracker. Everything stays on this device." />
-    <meta name="theme-color" content="#111417" />
+    <title>Mobility</title>
+    <meta name="description" content="A daily mobility and rehab tracker. All data stays on this device." />
+    <meta name="theme-color" content="#08090b" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Mobility" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="icon-180.png" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="styles.css" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#129485;</text></svg>" />
   </head>
   <body>
-    <div class="wrap">
-      <header class="head">
-        <h1>Mobility &amp; Rehab</h1>
-        <p class="today" id="today-label"></p>
+    <div class="app">
+      <header class="topbar">
+        <span class="brand">Mobility</span>
+        <span class="topbar-date" id="today-label"></span>
       </header>
 
-      <section class="card checkpoint" id="checkpoint" aria-labelledby="checkpoint-title">
-        <h2 id="checkpoint-title">Ankle checkpoint — 12 weeks</h2>
-        <div id="checkpoint-body"></div>
-      </section>
+      <main>
+        <!-- ------------------------------------------------------ TODAY -->
+        <section class="view" id="view-today">
+          <div class="hero" id="hero"></div>
 
-      <section aria-labelledby="daily-title">
-        <div class="section-head">
-          <h2 id="daily-title">Every day</h2>
-          <p class="progress" id="daily-progress"></p>
-        </div>
-        <ul class="list" id="daily-list"></ul>
-      </section>
+          <div class="section-head">
+            <h2>Every day</h2>
+            <span class="meter" id="daily-progress"></span>
+          </div>
+          <ul class="list" id="daily-list"></ul>
 
-      <section aria-labelledby="daytype-title">
-        <div class="section-head">
-          <h2 id="daytype-title">Today is a…</h2>
-          <p class="progress" id="daytype-progress"></p>
-        </div>
-        <div class="segmented" role="radiogroup" aria-label="Day type">
-          <button type="button" role="radio" id="btn-training" data-daytype="training">Training day</button>
-          <button type="button" role="radio" id="btn-off" data-daytype="off">Off day</button>
-        </div>
-        <ul class="list" id="daytype-list"></ul>
-      </section>
+          <div class="section-head">
+            <h2>Today is a…</h2>
+            <span class="meter" id="daytype-progress"></span>
+          </div>
+          <div class="segmented" role="radiogroup" aria-label="Day type">
+            <button type="button" role="radio" data-daytype="training">Training day</button>
+            <button type="button" role="radio" data-daytype="off">Off day</button>
+          </div>
+          <ul class="list" id="daytype-list"></ul>
 
-      <section aria-labelledby="weekly-title">
-        <div class="section-head">
-          <h2 id="weekly-title">Spread across the week</h2>
-          <p class="progress" id="weekly-progress"></p>
-        </div>
-        <p class="hint">Tap a count to add one. The counts go back to zero every Monday.</p>
-        <ul class="list" id="weekly-list"></ul>
-      </section>
+          <div class="section-head">
+            <h2>This week</h2>
+            <span class="meter" id="weekly-progress"></span>
+          </div>
+          <p class="hint">Tap a target to add one. The counts clear every Monday.</p>
+          <ul class="list" id="weekly-list"></ul>
+        </section>
 
-      <footer class="foot">
-        <p>No account, no server. All data stays in this browser.</p>
-        <p><button type="button" class="link" id="reset-all">Erase all data</button></p>
-      </footer>
+        <!-- --------------------------------------------------- PROGRESS -->
+        <section class="view" id="view-progress" hidden>
+          <div class="stat-row" id="stat-row"></div>
+
+          <div class="card">
+            <div class="section-head tight">
+              <h2 id="grid-title">12 weeks</h2>
+              <span class="meter" id="grid-count"></span>
+            </div>
+            <div class="grid" id="grid" role="img" aria-label="Daily completion grid"></div>
+            <div class="scale">
+              <span>Less</span>
+              <i class="cell l0"></i><i class="cell l1"></i><i class="cell l2"></i>
+              <i class="cell l3"></i><i class="cell l4"></i>
+              <span>More</span>
+            </div>
+            <p class="grid-detail" id="grid-detail">Tap a square to see that day.</p>
+          </div>
+
+          <div class="card" id="checkpoint">
+            <div class="section-head tight"><h2>Ankle checkpoint</h2></div>
+            <div id="checkpoint-body"></div>
+          </div>
+
+          <div class="card" id="measure-card">
+            <div class="section-head tight"><h2>Knee-to-wall</h2></div>
+            <div id="measure-body"></div>
+          </div>
+
+          <p class="foot">No account, no server. All data stays in this browser.</p>
+          <p class="foot"><button type="button" class="link" id="reset-all">Erase all data</button></p>
+        </section>
+      </main>
+
+      <nav class="tabbar" aria-label="Views">
+        <button type="button" class="tab" data-view="today" aria-current="page">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5 9 17.5 20 6.5"/></svg>
+          <span>Today</span>
+        </button>
+        <button type="button" class="tab" data-view="progress">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>
+          <span>Progress</span>
+        </button>
+      </nav>
     </div>
 
     <script src="app.js"></script>
