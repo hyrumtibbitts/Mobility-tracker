@@ -53,11 +53,36 @@ main { padding: 0 1rem calc(var(--tabbar) + 1.5rem); }
 }
 
 .brand {
+  flex: 1;
+  min-width: 0;
   font-size: 0.8125rem;
   font-weight: 800;
   letter-spacing: 0.18em;
   text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
+.topbar { align-items: center; }
+
+.back {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin: -4px 0 -4px -6px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--card-2);
+  cursor: pointer;
+}
+
+.back svg { width: 20px; height: 20px; fill: none; stroke: var(--ink); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.back:active { transform: scale(0.92); }
+.back[hidden] { display: none; }
+[hidden] { display: none !important; }
 
 .topbar-date { font-size: 0.8125rem; color: var(--ink-3); }
 
@@ -420,3 +445,81 @@ input[type="number"] { width: 5.5rem; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+
+/* ------------------------------------------------------------- controls */
+
+.controls { margin: 1.25rem 0 1.5rem; }
+
+.control-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* ----------------------------------------------------------- home cards */
+
+.cards { display: grid; gap: 0.75rem; }
+
+.card-link {
+  display: block;
+  padding: 1rem 1.0625rem 1.125rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--card);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.12s ease;
+}
+
+.card-link:active { transform: scale(0.99); border-color: var(--line-2); }
+.card-link.done { border-color: rgba(216, 254, 81, 0.45); }
+
+.card-top { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+
+.card-name { font-size: 1.0625rem; font-weight: 700; letter-spacing: -0.015em; }
+
+.card-count {
+  display: flex;
+  align-items: center;
+  gap: 0.4375rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+
+.card-count.full { color: var(--accent); }
+.card-count svg { width: 16px; height: 16px; fill: none; stroke: var(--ink-3); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+
+.card-link .track { margin-top: 0.8125rem; }
+.card-sub { margin: 0.625rem 0 0; font-size: 0.8125rem; color: var(--ink-3); }
+
+/* ---------------------------------------------------------- detail page */
+
+.detail-head { margin: 1.25rem 0 1.25rem; }
+
+.detail-title {
+  margin: 0.25rem 0 0;
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+
+.detail-meter {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.875rem;
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+}
+
+.detail-meter b { font-size: 0.9375rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+.detail-head .track { margin-top: 0.5rem; }
+#list-controls .segmented { margin-bottom: 1rem; }

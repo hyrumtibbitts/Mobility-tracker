@@ -310,7 +310,7 @@ function doseRow(item) {
     var next = countOf(item) + 1;
     state.doses[item.id] = next > doseOf(item) ? 0 : next;
     afterChange();
-    renderToday();
+    renderListBody();
   });
   li.appendChild(button);
   if (done) { li.classList.add("done"); }
@@ -337,8 +337,8 @@ function weekRow(item) {
   button.addEventListener("click", function () {
     var next = (state.counts[item.id] || 0) + 1;
     state.counts[item.id] = next > item.target ? 0 : next;
-    save();
-    renderToday();
+    afterChange();
+    renderListBody();
   });
   li.appendChild(button);
   return li;
@@ -347,8 +347,9 @@ function weekRow(item) {
 function afterChange() {
   recordToday();
   save();
-  renderLabels();
   renderHero();
+  renderCards();
+  renderListMeter();
 }
 
 function fill(id, items, makeRow) {
@@ -411,22 +412,134 @@ function renderHero() {
       : "");
 }
 
-function setLabel(id, done, total) {
-  var node = document.getElementById(id);
-  node.textContent = done + "/" + total;
-  node.classList.toggle("full", done >= total);
+/* --------------------------------------------------------------- sections
+   One block of work = one card on the home screen and one page behind it. */
+
+var SECTIONS = {
+  daily: {
+    hash: "#/daily",
+    eyebrow: function () { return "Today"; },
+    name: function () { return "Every day"; },
+    items: function () { return DAILY; },
+    kind: "dose"
+  },
+  day: {
+    hash: "#/day",
+    eyebrow: function () { return "Today"; },
+    name: function () { return state.dayType === "off" ? "Off day" : "Training day"; },
+    items: dayTypeItems,
+    kind: "dose"
+  },
+  week: {
+    hash: "#/week",
+    eyebrow: function () { return "Week of " + shortDate(state.weekStart); },
+    name: function () { return "This week"; },
+    items: function () { return WEEKLY; },
+    kind: "week"
+  }
+};
+
+var SECTION_ORDER = ["daily", "day", "week"];
+
+function sectionProgress(key) {
+  var section = SECTIONS[key];
+  var items = section.items();
+  if (section.kind === "week") {
+    var done = 0;
+    var total = 0;
+    for (var i = 0; i < items.length; i++) {
+      total += items[i].target;
+      done += Math.min(state.counts[items[i].id] || 0, items[i].target);
+    }
+    return { done: done, total: total, unit: "left this week" };
+  }
+  return { done: dosesDone(items), total: dosesTotal(items), unit: "doses left today" };
 }
 
-function renderLabels() {
-  setLabel("daily-progress", dosesDone(DAILY), dosesTotal(DAILY));
-  setLabel("daytype-progress", dosesDone(dayTypeItems()), dosesTotal(dayTypeItems()));
-  var done = 0;
-  var total = 0;
-  for (var i = 0; i < WEEKLY.length; i++) {
-    total += WEEKLY[i].target;
-    done += Math.min(state.counts[WEEKLY[i].id] || 0, WEEKLY[i].target);
+var CHEVRON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
+
+function renderCards() {
+  var box = document.getElementById("cards");
+  if (!box) { return; }
+  box.innerHTML = "";
+  for (var i = 0; i < SECTION_ORDER.length; i++) {
+    var key = SECTION_ORDER[i];
+    var section = SECTIONS[key];
+    var p = sectionProgress(key);
+    var percent = p.total ? Math.round((p.done / p.total) * 100) : 0;
+    var full = p.done >= p.total;
+
+    var link = el("a", "card-link" + (full ? " done" : ""));
+    link.href = section.hash;
+
+    var top = el("div", "card-top");
+    top.appendChild(el("span", "card-name", section.name()));
+    var count = el("span", "card-count" + (full ? " full" : ""));
+    count.appendChild(el("b", null, p.done + "/" + p.total));
+    count.insertAdjacentHTML("beforeend", CHEVRON);
+    top.appendChild(count);
+    link.appendChild(top);
+
+    var track = el("div", "track");
+    var bar = el("i");
+    bar.style.width = percent + "%";
+    track.appendChild(bar);
+    link.appendChild(track);
+
+    link.appendChild(el("p", "card-sub", full ? "Complete" : (p.total - p.done) + " " + p.unit));
+    box.appendChild(link);
   }
-  setLabel("weekly-progress", done, total);
+}
+
+/* ------------------------------------------------------------ list page */
+
+var openKey = null;
+
+function renderListBody() {
+  if (!openKey) { return; }
+  var section = SECTIONS[openKey];
+  fill("list-body", section.items(), section.kind === "week" ? weekRow : taskRow);
+  renderListMeter();
+}
+
+function renderListMeter() {
+  if (!openKey) { return; }
+  var section = SECTIONS[openKey];
+  var p = sectionProgress(openKey);
+  var percent = p.total ? Math.round((p.done / p.total) * 100) : 0;
+  document.getElementById("list-count").textContent = p.done + "/" + p.total;
+  document.getElementById("list-sub").textContent =
+    p.done >= p.total ? "Complete" : (p.total - p.done) + " " + p.unit;
+  document.getElementById("list-bar").style.width = percent + "%";
+}
+
+function renderList(key) {
+  openKey = key;
+  var section = SECTIONS[key];
+  document.getElementById("list-eyebrow").textContent = section.eyebrow();
+  document.getElementById("list-title").textContent = section.name();
+
+  var controls = document.getElementById("list-controls");
+  controls.innerHTML = "";
+  if (key === "day") { controls.appendChild(dayTypeControl()); }
+
+  renderListBody();
+}
+
+function dayTypeControl() {
+  var box = el("div", "segmented");
+  box.setAttribute("role", "radiogroup");
+  box.setAttribute("aria-label", "Day type");
+  var types = [{ id: "training", label: "Training day" }, { id: "off", label: "Off day" }];
+  for (var i = 0; i < types.length; i++) {
+    var button = el("button", types[i].id === state.dayType ? "active" : null, types[i].label);
+    button.type = "button";
+    button.setAttribute("role", "radio");
+    button.setAttribute("data-daytype", types[i].id);
+    button.setAttribute("aria-checked", types[i].id === state.dayType ? "true" : "false");
+    box.appendChild(button);
+  }
+  return box;
 }
 
 /* --------------------------------------------------------------- progress */
@@ -588,64 +701,83 @@ function renderMeasures() {
   }
 }
 
-/* ----------------------------------------------------------------- render */
+/* ------------------------------------------------------- render + router */
 
-function renderToday() {
-  renderHero();
-  fill("daily-list", DAILY, taskRow);
-  fill("daytype-list", dayTypeItems(), taskRow);
-  fill("weekly-list", WEEKLY, weekRow);
-  var buttons = document.querySelectorAll("[data-daytype]");
-  for (var i = 0; i < buttons.length; i++) {
-    var on = buttons[i].getAttribute("data-daytype") === state.dayType;
-    buttons[i].classList.toggle("active", on);
-    buttons[i].setAttribute("aria-checked", on ? "true" : "false");
-  }
-  renderLabels();
+function setDayType(type) {
+  state.dayType = type;
+  recordToday();
+  save();
+  render();
+}
+
+function routeOf(hash) {
+  var clean = String(hash || "").replace(/^#/, "");
+  if (clean === "/progress") { return { view: "progress" }; }
+  if (clean === "/daily") { return { view: "list", key: "daily" }; }
+  if (clean === "/day") { return { view: "list", key: "day" }; }
+  if (clean === "/week") { return { view: "list", key: "week" }; }
+  return { view: "home" };
 }
 
 function render() {
+  var route = routeOf(window.location.hash);
   document.getElementById("today-label").textContent = longDate(todayISO());
-  renderToday();
-  renderStats();
-  renderGrid();
-  renderCheckpoint();
-  renderMeasures();
-}
 
-/* ------------------------------------------------------------------ start */
+  document.getElementById("view-home").hidden = route.view !== "home";
+  document.getElementById("view-list").hidden = route.view !== "list";
+  document.getElementById("view-progress").hidden = route.view !== "progress";
 
-function showView(name) {
-  document.getElementById("view-today").hidden = name !== "today";
-  document.getElementById("view-progress").hidden = name !== "progress";
+  var back = document.getElementById("back");
+  back.hidden = route.view !== "list";
+  document.getElementById("topbar-title").textContent =
+    route.view === "list" ? SECTIONS[route.key].name() : "Mobility";
+
   var tabs = document.querySelectorAll(".tab");
+  var live = route.view === "progress" ? "progress" : "today";
   for (var i = 0; i < tabs.length; i++) {
-    if (tabs[i].getAttribute("data-view") === name) {
+    if (tabs[i].getAttribute("data-tab") === live) {
       tabs[i].setAttribute("aria-current", "page");
     } else {
       tabs[i].removeAttribute("aria-current");
     }
   }
-  if (name === "progress") { renderStats(); renderGrid(); }
+
+  if (route.view === "home") {
+    openKey = null;
+    renderHero();
+    renderCards();
+    var buttons = document.querySelectorAll("#view-home [data-daytype]");
+    for (var j = 0; j < buttons.length; j++) {
+      var on = buttons[j].getAttribute("data-daytype") === state.dayType;
+      buttons[j].classList.toggle("active", on);
+      buttons[j].setAttribute("aria-checked", on ? "true" : "false");
+    }
+  } else if (route.view === "list") {
+    renderList(route.key);
+  } else {
+    openKey = null;
+    renderStats();
+    renderGrid();
+    renderCheckpoint();
+    renderMeasures();
+  }
+}
+
+/* ------------------------------------------------------------------ start */
+
+window.addEventListener("hashchange", function () {
+  render();
   window.scrollTo(0, 0);
-}
+});
 
-var tabs = document.querySelectorAll(".tab");
-for (var t = 0; t < tabs.length; t++) {
-  tabs[t].addEventListener("click", function (event) {
-    showView(event.currentTarget.getAttribute("data-view"));
-  });
-}
+document.getElementById("back").addEventListener("click", function () {
+  if (window.history.length > 1) { window.history.back(); } else { window.location.hash = "#/"; }
+});
 
-var toggles = document.querySelectorAll("[data-daytype]");
-for (var g = 0; g < toggles.length; g++) {
-  toggles[g].addEventListener("click", function (event) {
-    state.dayType = event.currentTarget.getAttribute("data-daytype");
-    recordToday();
-    save();
-    renderToday();
-  });
-}
+document.addEventListener("click", function (event) {
+  var toggle = event.target.closest("[data-daytype]");
+  if (toggle) { setDayType(toggle.getAttribute("data-daytype")); }
+});
 
 document.getElementById("grid").addEventListener("click", function (event) {
   var cell = event.target.closest(".cell");

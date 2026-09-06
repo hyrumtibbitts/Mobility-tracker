@@ -18,37 +18,42 @@
   <body>
     <div class="app">
       <header class="topbar">
-        <span class="brand">Mobility</span>
+        <button type="button" class="back" id="back" hidden aria-label="Back">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 8 12l7 7"/></svg>
+        </button>
+        <span class="brand" id="topbar-title">Mobility</span>
         <span class="topbar-date" id="today-label"></span>
       </header>
 
       <main>
-        <!-- ------------------------------------------------------ TODAY -->
-        <section class="view" id="view-today">
+        <!-- ------------------------------------------------------- HOME -->
+        <section class="view" id="view-home">
           <div class="hero" id="hero"></div>
 
-          <div class="section-head">
-            <h2>Every day</h2>
-            <span class="meter" id="daily-progress"></span>
+          <div class="controls">
+            <p class="control-label">Today is a</p>
+            <div class="segmented" role="radiogroup" aria-label="Day type">
+              <button type="button" role="radio" data-daytype="training">Training day</button>
+              <button type="button" role="radio" data-daytype="off">Off day</button>
+            </div>
           </div>
-          <ul class="list" id="daily-list"></ul>
 
-          <div class="section-head">
-            <h2>Today is a…</h2>
-            <span class="meter" id="daytype-progress"></span>
-          </div>
-          <div class="segmented" role="radiogroup" aria-label="Day type">
-            <button type="button" role="radio" data-daytype="training">Training day</button>
-            <button type="button" role="radio" data-daytype="off">Off day</button>
-          </div>
-          <ul class="list" id="daytype-list"></ul>
+          <div class="cards" id="cards"></div>
+        </section>
 
-          <div class="section-head">
-            <h2>This week</h2>
-            <span class="meter" id="weekly-progress"></span>
+        <!-- ------------------------------------------------------- LIST -->
+        <section class="view" id="view-list" hidden>
+          <div class="detail-head">
+            <p class="eyebrow" id="list-eyebrow"></p>
+            <h1 class="detail-title" id="list-title"></h1>
+            <div class="detail-meter">
+              <span id="list-sub"></span>
+              <b id="list-count"></b>
+            </div>
+            <div class="track"><i id="list-bar"></i></div>
           </div>
-          <p class="hint">Tap a target to add one. The counts clear every Monday.</p>
-          <ul class="list" id="weekly-list"></ul>
+          <div id="list-controls"></div>
+          <ul class="list" id="list-body"></ul>
         </section>
 
         <!-- --------------------------------------------------- PROGRESS -->
@@ -86,14 +91,14 @@
       </main>
 
       <nav class="tabbar" aria-label="Views">
-        <button type="button" class="tab" data-view="today" aria-current="page">
+        <a class="tab" href="#/" data-tab="today" aria-current="page">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5 9 17.5 20 6.5"/></svg>
           <span>Today</span>
-        </button>
-        <button type="button" class="tab" data-view="progress">
+        </a>
+        <a class="tab" href="#/progress" data-tab="progress">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>
           <span>Progress</span>
-        </button>
+        </a>
       </nav>
     </div>
 
